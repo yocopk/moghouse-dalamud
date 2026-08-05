@@ -242,6 +242,11 @@ public sealed class TimerSyncService : IDisposable
                     Plugin.Log.Warning($"Server rejected timers: {string.Join(", ", result.Data.Rejected)}");
                 }
 
+                foreach (var warning in result.Data.Warnings)
+                {
+                    Plugin.Log.Warning($"Server warning: {warning}");
+                }
+
                 Plugin.Log.Debug($"Snapshot accepted: {result.Data.Accepted} timers");
                 return;
             }

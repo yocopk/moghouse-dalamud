@@ -55,7 +55,11 @@ public sealed class SnapshotResult
 
     [JsonPropertyName("accepted")] public int Accepted { get; set; }
 
+    /// <summary>Entries the server refused, with the reason. Logged, not shown in the UI.</summary>
     [JsonPropertyName("rejected")] public List<string> Rejected { get; set; } = [];
+
+    /// <summary>Non-fatal notes, e.g. the client clock drifting far enough to matter.</summary>
+    [JsonPropertyName("warnings")] public List<string> Warnings { get; set; } = [];
 
     [JsonPropertyName("serverTime")] public DateTime? ServerTime { get; set; }
 }
