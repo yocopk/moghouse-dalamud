@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MogHouseCompanion", "MogHouseCompanion\MogHouseCompanion.csproj", "{9C4B1A57-6E2D-4F3B-8A21-5D7E0C9F41B6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C4B1A57-6E2D-4F3B-8A21-5D7E0C9F41B6}.Debug|x64.ActiveCfg = Debug|x64
+		{9C4B1A57-6E2D-4F3B-8A21-5D7E0C9F41B6}.Debug|x64.Build.0 = Debug|x64
+		{9C4B1A57-6E2D-4F3B-8A21-5D7E0C9F41B6}.Release|x64.ActiveCfg = Release|x64
+		{9C4B1A57-6E2D-4F3B-8A21-5D7E0C9F41B6}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2E8F3D14-7A65-4C09-B3E2-8F1D6A0B5C73}
+	EndGlobalSection
+EndGlobal

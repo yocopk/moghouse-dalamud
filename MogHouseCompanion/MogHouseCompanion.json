@@ -1,0 +1,19 @@
+{
+  "Author": "yocopk",
+  "Name": "MogHouse Companion",
+  "Punchline": "Sync your FFXIV timers to MogHouse and get notified when they are up — even with the game closed.",
+  "Description": "Companion plugin for MogHouse (mog-house.com).\n\nReads the timers you already see in the game's own Timers window (CTRL+U) — submarine and airship voyages, retainer ventures, map and leve allowances, Grand Company missions, custom deliveries, fashion report, allied society dailies — and syncs them to your MogHouse profile. MogHouse then sends you a push notification the moment a timer comes up, on the web app and on mobile, even while the game and your PC are off.\n\nYou choose which timers notify you, per character, from mog-house.com/settings/ffxiv. The plugin itself is read-only: it collects your own timers and reports status. It never performs any in-game action.\n\nLink your account with /moghouse. Requires a MogHouse account with an active Mog+ subscription.",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/yocopk/moghouse-dalamud",
+  "Tags": [
+    "moghouse",
+    "timers",
+    "submarines",
+    "ventures",
+    "notifications"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "AcceptsFeedback": false
+}
