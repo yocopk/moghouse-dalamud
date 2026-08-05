@@ -99,15 +99,15 @@ public sealed class StatusWindow : Window, IDisposable
 
     private static void DrawCharacter()
     {
-        var player = Plugin.ClientState.LocalPlayer;
-        if (player == null)
+        var player = Plugin.PlayerState;
+        if (!player.IsLoaded)
         {
             Field("Character", "Not logged in", ImGuiColors.DalamudGrey);
             return;
         }
 
-        var world = player.HomeWorld.Value.Name.ToString();
-        Field("Character", $"{player.Name.TextValue} @ {world}");
+        var world = player.HomeWorld.IsValid ? player.HomeWorld.Value.Name.ToString() : "unknown world";
+        Field("Character", $"{player.CharacterName} @ {world}");
     }
 
     private static void Field(string label, string value)
