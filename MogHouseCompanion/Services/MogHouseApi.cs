@@ -56,6 +56,19 @@ public sealed class MogHouseApi : IDisposable
         return code.Trim().ToUpperInvariant();
     }
 
+    /// <summary>
+    /// Uploads a timer snapshot. Keys present in the payload replace the stored rows for that key;
+    /// keys left out are untouched, which is how a partial reading stays safe.
+    /// </summary>
+    public Task<ApiResponse<SnapshotResult>> PostSnapshotAsync(SnapshotRequest snapshot, CancellationToken ct = default)
+    {
+        return PostAsync<SnapshotRequest, SnapshotResult>(
+            "/api/plugin/v1/timers/snapshot",
+            snapshot,
+            authenticated: true,
+            ct);
+    }
+
     private async Task<ApiResponse<TOut>> PostAsync<TIn, TOut>(
         string path,
         TIn body,

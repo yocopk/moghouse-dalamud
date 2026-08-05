@@ -25,6 +25,7 @@ public sealed class PairingWindow : Window, IDisposable
 
     private readonly Configuration configuration;
     private readonly MogHouseApi api;
+    private readonly TimerSyncService syncService;
 
     private string codeInput = string.Empty;
 
@@ -33,11 +34,12 @@ public sealed class PairingWindow : Window, IDisposable
     private volatile string statusMessage = string.Empty;
     private volatile bool statusIsError;
 
-    public PairingWindow(Configuration configuration, MogHouseApi api)
+    public PairingWindow(Configuration configuration, MogHouseApi api, TimerSyncService syncService)
         : base("MogHouse — Link account###MogHouseCompanionPairing")
     {
         this.configuration = configuration;
         this.api = api;
+        this.syncService = syncService;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -145,6 +147,9 @@ public sealed class PairingWindow : Window, IDisposable
             codeInput = string.Empty;
             SetStatus("Linked. You can close this window.", isError: false);
             Plugin.Log.Information($"Linked to MogHouse as device '{configuration.TokenLabel}'");
+
+            // Send what we can read right now so the website is not empty on first visit.
+            syncService.RequestSync();
             return;
         }
 

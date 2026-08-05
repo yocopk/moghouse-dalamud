@@ -12,7 +12,10 @@ public sealed class Plugin : IDalamudPlugin
 {
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private const string CommandName = "/moghouse";
@@ -21,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private Configuration Configuration { get; }
     private MogHouseApi Api { get; }
+    private TimerSyncService SyncService { get; }
     private PairingWindow PairingWindow { get; }
     private StatusWindow StatusWindow { get; }
 
@@ -28,9 +32,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Api = new MogHouseApi(Configuration);
+        SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
 
-        PairingWindow = new PairingWindow(Configuration, Api);
-        StatusWindow = new StatusWindow(Configuration, PairingWindow);
+        PairingWindow = new PairingWindow(Configuration, Api, SyncService);
+        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow);
 
         windowSystem.AddWindow(PairingWindow);
         windowSystem.AddWindow(StatusWindow);
@@ -55,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
 
         StatusWindow.Dispose();
         PairingWindow.Dispose();
+        SyncService.Dispose();
         Api.Dispose();
 
         CommandManager.RemoveHandler(CommandName);

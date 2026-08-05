@@ -5,9 +5,10 @@ A [Dalamud](https://github.com/goatcorp/Dalamud) plugin that syncs your FFXIV ti
 game closed and your PC off**.
 
 > **Status: pre-alpha, not published.**
-> This build only links your account; timer collection is not implemented yet. There is no release
-> and no public plugin repository entry — the source is public because Dalamud installs plugins
-> from public download URLs, not because the plugin is ready to install.
+> Account linking and timer collection are implemented, but the server endpoint they upload to is
+> still being built, so nothing has been tested end to end yet. There is no release and no public
+> plugin repository entry — the source is public because Dalamud installs plugins from public
+> download URLs, not because the plugin is ready to install.
 
 ## How it works
 
@@ -28,16 +29,29 @@ You pick **which** timers notify you, per character, on
 configuration of its own on purpose: one source of truth means the website and the mobile app can
 never disagree about what should fire.
 
-### Planned timer coverage
+### Timer coverage
 
-| | |
-|---|---|
-| **Estate** | Submarine and airship voyages |
-| **Retainers** | Ventures |
-| **Allowances** | Treasure maps, leves (near-cap alert), Grand Company missions, allied society dailies |
-| **Weekly** | Custom deliveries, fashion report |
+| Collector | Timers | Readable when |
+|---|---|---|
+| Workshop voyages | Submarine and airship returns | inside the FC workshop |
+| Retainer ventures | Venture completion, per retainer | after opening the retainer bell |
+| Allowances | Treasure map, leves, custom deliveries, allied society dailies | always, once logged in |
 
-Jumbo Cactpot is intentionally excluded — MogHouse already has its own reminder for it.
+Grand Company missions and the fashion report are driven by fixed weekly/daily resets, so the server
+derives them on its own and the plugin collects nothing for them. Jumbo Cactpot is excluded
+entirely — MogHouse already has its own reminder for it.
+
+The "readable when" column is a limit of the game, not of the plugin: FFXIV only populates those
+structures in those situations, which is exactly why the timers are uploaded and scheduled
+server-side. Once a deadline has been uploaded, the notification fires whether or not the game is
+running.
+
+### When it syncs
+
+The plugin reads the collectors every 15 seconds and uploads only when the values actually changed,
+with a minimum of 60 seconds between uploads and a heartbeat every 10 minutes so the website can
+tell how fresh the data is. Logging in and changing zone also trigger a check. Nothing is hooked
+into individual game windows, so a patch that moves an addon around cannot break syncing.
 
 ## Requirements
 
