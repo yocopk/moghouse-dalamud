@@ -33,6 +33,32 @@ public class Configuration : IPluginConfiguration
     [JsonIgnore]
     public string SettingsUrl => $"{BaseUrl.TrimEnd('/')}/settings/ffxiv";
 
+    /// <summary>
+    /// Validates a server address typed by hand and strips a trailing slash, or returns null when
+    /// it is not usable. Paths are allowed: request paths are appended to this value, so an
+    /// instance hosted under a sub-path still works.
+    /// </summary>
+    public static string? NormalizeBaseUrl(string input)
+    {
+        var text = input.Trim().TrimEnd('/');
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return null;
+        }
+
+        return text;
+    }
+
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

@@ -98,6 +98,22 @@ public sealed class TimerSyncService : IDisposable
         retryAfter = DateTime.MinValue;
     }
 
+    /// <summary>
+    /// Forgets everything learned about the current link: the last uploaded readings, the retry
+    /// backoff and the reported status. Called when the device is unlinked or pointed at another
+    /// server, where none of it means anything any more.
+    /// </summary>
+    public void ResetState()
+    {
+        lastUploadedSignature = string.Empty;
+        lastSuccessAt = DateTime.MinValue;
+        lastAttemptAt = DateTime.MinValue;
+        retryAfter = DateTime.MinValue;
+        consecutiveFailures = 0;
+        forceRequested = false;
+        status = SyncStatus.Idle;
+    }
+
     private void OnLogin()
     {
         RequestSync();

@@ -91,9 +91,13 @@ dotnet build --configuration Release
 Release builds are packaged by `DalamudPackager` into
 `MogHouseCompanion/bin/x64/Release/MogHouseCompanion/latest.zip`.
 
-Point the plugin at a local or staging server by editing `BaseUrl` in
-`%AppData%\XIVLauncher\pluginConfigs\MogHouseCompanion.json`. It defaults to the dev server during
-the beta.
+To load it in-game without packaging, add the build output directory
+(`MogHouseCompanion/bin/x64/Debug`) under `Dalamud Settings → Experimental → Dev Plugin Locations`.
+Both configurations put the DLL and its manifest side by side, which is the layout Dalamud expects.
+
+Point the plugin at a local or staging server from **`/moghouse` → Advanced**. Switching server
+unlinks the device, because a bearer token only works on the instance that issued it. It defaults
+to the dev server during the beta.
 
 ## Releasing
 

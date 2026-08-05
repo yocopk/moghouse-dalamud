@@ -25,12 +25,16 @@ public sealed class StatusWindow : Window, IDisposable
     private readonly TimerSyncService syncService;
     private readonly PairingWindow pairingWindow;
 
+    /// <summary>Edited copy of the server address; only written back to the config on Apply.</summary>
+    private string serverDraft;
+
     public StatusWindow(Configuration configuration, TimerSyncService syncService, PairingWindow pairingWindow)
         : base("MogHouse Companion###MogHouseCompanionStatus")
     {
         this.configuration = configuration;
         this.syncService = syncService;
         this.pairingWindow = pairingWindow;
+        serverDraft = configuration.BaseUrl;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -51,16 +55,98 @@ public sealed class StatusWindow : Window, IDisposable
 
         DrawCharacter();
 
-        if (!configuration.IsLinked)
+        if (configuration.IsLinked)
         {
-            return;
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            DrawSync();
         }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawSync();
+        DrawAdvanced();
+    }
+
+    /// <summary>
+    /// Server selection. Collapsed by default and worded as a warning, because pointing a normal
+    /// user at the wrong instance would silently stop their notifications.
+    /// </summary>
+    private void DrawAdvanced()
+    {
+        if (!ImGui.CollapsingHeader("Advanced"))
+        {
+            // Re-sync while closed so reopening never shows an abandoned edit.
+            serverDraft = configuration.BaseUrl;
+            return;
+        }
+
+        ImGui.TextWrapped(
+            "Which MogHouse instance this plugin talks to. Leave it alone unless you are testing " +
+            "against a development server.");
+
+        ImGui.Spacing();
+
+        if (ImGui.Button("Production"))
+        {
+            serverDraft = Configuration.ProdBaseUrl;
+        }
+
+        ImGui.SameLine();
+
+        if (ImGui.Button("Development"))
+        {
+            serverDraft = Configuration.DevBaseUrl;
+        }
+
+        ImGui.Spacing();
+        ImGui.SetNextItemWidth(320 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("Server###MogHouseCompanionBaseUrl", ref serverDraft, 256);
+
+        var normalized = Configuration.NormalizeBaseUrl(serverDraft);
+        var changed = normalized != null && normalized != configuration.BaseUrl;
+
+        using (ImRaii.Disabled(!changed))
+        {
+            if (ImGui.Button("Apply") && normalized != null)
+            {
+                ApplyServer(normalized);
+            }
+        }
+
+        if (normalized == null)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudRed, "Enter a full http:// or https:// address.");
+        }
+        else if (changed && configuration.IsLinked)
+        {
+            ImGui.TextColored(
+                ImGuiColors.DalamudYellow,
+                "This will unlink the device: a token only works on the server that issued it.");
+        }
+    }
+
+    private void ApplyServer(string baseUrl)
+    {
+        var wasLinked = configuration.IsLinked;
+
+        configuration.BaseUrl = baseUrl;
+
+        // The bearer token is issued by one instance and meaningless on another, so moving server
+        // has to drop it rather than leave a token that will only ever return 401.
+        configuration.Token = string.Empty;
+        configuration.Save();
+
+        syncService.ResetState();
+        serverDraft = baseUrl;
+
+        Plugin.Log.Information(
+            wasLinked
+                ? $"Server set to {baseUrl}; the previous link was dropped."
+                : $"Server set to {baseUrl}.");
     }
 
     private void DrawAccount()
@@ -222,6 +308,10 @@ public sealed class StatusWindow : Window, IDisposable
     {
         configuration.Token = string.Empty;
         configuration.Save();
+
+        // Otherwise the window would keep reporting the old link's last sync and error state.
+        syncService.ResetState();
+
         Plugin.Log.Information("Unlinked from MogHouse");
     }
 }
