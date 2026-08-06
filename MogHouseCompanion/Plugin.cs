@@ -26,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private MogHouseApi Api { get; }
     private TimerSyncService SyncService { get; }
     private PairingWindow PairingWindow { get; }
+    private ConfigWindow ConfigWindow { get; }
     private StatusWindow StatusWindow { get; }
 
     public Plugin()
@@ -35,9 +36,11 @@ public sealed class Plugin : IDalamudPlugin
         SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
 
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
-        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow);
+        ConfigWindow = new ConfigWindow(Configuration, SyncService);
+        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow, ConfigWindow);
 
         windowSystem.AddWindow(PairingWindow);
+        windowSystem.AddWindow(ConfigWindow);
         windowSystem.AddWindow(StatusWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -46,19 +49,21 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenConfigUi += ToggleStatusUi;
+        // The cog in the plugin installer should land on the settings, not the status readout.
+        PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi += ToggleStatusUi;
     }
 
     public void Dispose()
     {
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenConfigUi -= ToggleStatusUi;
+        PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleStatusUi;
 
         windowSystem.RemoveAllWindows();
 
         StatusWindow.Dispose();
+        ConfigWindow.Dispose();
         PairingWindow.Dispose();
         SyncService.Dispose();
         Api.Dispose();
@@ -74,5 +79,10 @@ public sealed class Plugin : IDalamudPlugin
     private void ToggleStatusUi()
     {
         StatusWindow.Toggle();
+    }
+
+    private void ToggleConfigUi()
+    {
+        ConfigWindow.Toggle();
     }
 }

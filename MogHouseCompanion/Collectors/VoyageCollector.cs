@@ -23,6 +23,8 @@ public sealed unsafe class VoyageCollector : ITimerCollector
 
     public string Name => "Workshop voyages";
 
+    public IReadOnlyList<string> Keys { get; } = [TimerKeys.Submarine, TimerKeys.Airship];
+
     public bool Collect(TimerSnapshotBuilder builder)
     {
         var housing = HousingManager.Instance();

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MogHouseCompanion.Collectors;
 
@@ -10,6 +11,13 @@ public interface ITimerCollector
 {
     /// <summary>Label shown in the status window.</summary>
     string Name { get; }
+
+    /// <summary>
+    /// Timer keys this collector is responsible for. Declared up front so the sync can tell the
+    /// server which timers it is authoritative for, including the ones it deliberately sent
+    /// nothing for.
+    /// </summary>
+    IReadOnlyList<string> Keys { get; }
 
     /// <summary>
     /// Appends rows for this subsystem.

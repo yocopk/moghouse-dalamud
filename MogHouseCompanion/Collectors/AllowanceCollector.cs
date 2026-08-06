@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
@@ -16,6 +17,15 @@ public sealed unsafe class AllowanceCollector : ITimerCollector
     private const int MaxAlliedSocietyAllowances = 12;
 
     public string Name => "Allowances";
+
+    // These four load together with the character, so they succeed or fail as a group.
+    public IReadOnlyList<string> Keys { get; } =
+    [
+        TimerKeys.MapAllowance,
+        TimerKeys.LeveAllowance,
+        TimerKeys.CustomDeliveries,
+        TimerKeys.AlliedDailies,
+    ];
 
     public bool Collect(TimerSnapshotBuilder builder)
     {

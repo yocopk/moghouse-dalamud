@@ -11,8 +11,8 @@ using MogHouseCompanion.Services;
 namespace MogHouseCompanion.Windows;
 
 /// <summary>
-/// Read-only status surface opened with /moghouse. Alert configuration deliberately lives on the
-/// website only, so the server stays the single source of truth for what gets notified.
+/// What the plugin is doing right now: who it is linked to, what it can read, when it last synced.
+/// Everything you can change lives in the settings window; this one only reports.
 /// </summary>
 public sealed class StatusWindow : Window, IDisposable
 {
@@ -24,21 +24,23 @@ public sealed class StatusWindow : Window, IDisposable
     private readonly Configuration configuration;
     private readonly TimerSyncService syncService;
     private readonly PairingWindow pairingWindow;
+    private readonly ConfigWindow configWindow;
 
-    /// <summary>Edited copy of the server address; only written back to the config on Apply.</summary>
-    private string serverDraft;
-
-    public StatusWindow(Configuration configuration, TimerSyncService syncService, PairingWindow pairingWindow)
+    public StatusWindow(
+        Configuration configuration,
+        TimerSyncService syncService,
+        PairingWindow pairingWindow,
+        ConfigWindow configWindow)
         : base("MogHouse Companion###MogHouseCompanionStatus")
     {
         this.configuration = configuration;
         this.syncService = syncService;
         this.pairingWindow = pairingWindow;
-        serverDraft = configuration.BaseUrl;
+        this.configWindow = configWindow;
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(460, 320),
+            MinimumSize = new Vector2(460, 300),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
     }
@@ -68,85 +70,13 @@ public sealed class StatusWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawAdvanced();
-    }
-
-    /// <summary>
-    /// Server selection. Collapsed by default and worded as a warning, because pointing a normal
-    /// user at the wrong instance would silently stop their notifications.
-    /// </summary>
-    private void DrawAdvanced()
-    {
-        if (!ImGui.CollapsingHeader("Advanced"))
+        if (ImGui.Button("Settings"))
         {
-            // Re-sync while closed so reopening never shows an abandoned edit.
-            serverDraft = configuration.BaseUrl;
-            return;
-        }
-
-        ImGui.TextWrapped(
-            "Which MogHouse instance this plugin talks to. Leave it alone unless you are testing " +
-            "against a development server.");
-
-        ImGui.Spacing();
-
-        if (ImGui.Button("Production"))
-        {
-            serverDraft = Configuration.ProdBaseUrl;
+            configWindow.IsOpen = true;
         }
 
         ImGui.SameLine();
-
-        if (ImGui.Button("Development"))
-        {
-            serverDraft = Configuration.DevBaseUrl;
-        }
-
-        ImGui.Spacing();
-        ImGui.SetNextItemWidth(320 * ImGuiHelpers.GlobalScale);
-        ImGui.InputText("Server###MogHouseCompanionBaseUrl", ref serverDraft, 256);
-
-        var normalized = Configuration.NormalizeBaseUrl(serverDraft);
-        var changed = normalized != null && normalized != configuration.BaseUrl;
-
-        using (ImRaii.Disabled(!changed))
-        {
-            if (ImGui.Button("Apply") && normalized != null)
-            {
-                ApplyServer(normalized);
-            }
-        }
-
-        if (normalized == null)
-        {
-            ImGui.TextColored(ImGuiColors.DalamudRed, "Enter a full http:// or https:// address.");
-        }
-        else if (changed && configuration.IsLinked)
-        {
-            ImGui.TextColored(
-                ImGuiColors.DalamudYellow,
-                "This will unlink the device: a token only works on the server that issued it.");
-        }
-    }
-
-    private void ApplyServer(string baseUrl)
-    {
-        var wasLinked = configuration.IsLinked;
-
-        configuration.BaseUrl = baseUrl;
-
-        // The bearer token is issued by one instance and meaningless on another, so moving server
-        // has to drop it rather than leave a token that will only ever return 401.
-        configuration.Token = string.Empty;
-        configuration.Save();
-
-        syncService.ResetState();
-        serverDraft = baseUrl;
-
-        Plugin.Log.Information(
-            wasLinked
-                ? $"Server set to {baseUrl}; the previous link was dropped."
-                : $"Server set to {baseUrl}.");
+        ImGui.TextColored(ImGuiColors.DalamudGrey, "Choose which timers get sent");
     }
 
     private void DrawAccount()
@@ -174,9 +104,9 @@ public sealed class StatusWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        if (ImGui.Button("Open FFXIV Sync settings"))
+        if (ImGui.Button("Open my timers"))
         {
-            Util.OpenLink(configuration.SettingsUrl);
+            Util.OpenLink(configuration.TimersUrl);
         }
 
         ImGui.SameLine();
@@ -215,7 +145,7 @@ public sealed class StatusWindow : Window, IDisposable
 
             if (ImGui.Button("Manage Mog+"))
             {
-                Util.OpenLink($"{configuration.BaseUrl.TrimEnd('/')}/premium");
+                Util.OpenLink($"{configuration.BaseUrl.TrimEnd('/')}/mogplus");
             }
 
             ImGui.Spacing();
@@ -253,6 +183,9 @@ public sealed class StatusWindow : Window, IDisposable
                 syncService.RequestSync();
             }
         }
+
+        ImGui.SameLine();
+        ImGui.TextColored(ImGuiColors.DalamudGrey, "Syncs on its own every hour, and when you log in");
 
         if (status.Unavailable.Length > 0)
         {

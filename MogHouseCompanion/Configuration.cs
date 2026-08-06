@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Dalamud.Configuration;
 using Newtonsoft.Json;
 
@@ -27,11 +28,36 @@ public class Configuration : IPluginConfiguration
     /// <summary>Label shown for this device in the account's device list on the website.</summary>
     public string TokenLabel { get; set; } = "FFXIV Plugin";
 
+    /// <summary>
+    /// Which timers may leave the game, keyed by timer key. This is the privacy control: a timer
+    /// switched off here is never uploaded, and the server is told to forget what it already has.
+    /// Whether an uploaded timer also sends a push is a separate choice, made on the website.
+    ///
+    /// Missing entries count as enabled, so a key added by a later version starts on rather than
+    /// silently doing nothing.
+    /// </summary>
+    public Dictionary<string, bool> TimerUploads { get; set; } = new();
+
+    public bool IsTimerEnabled(string key)
+    {
+        return !TimerUploads.TryGetValue(key, out var enabled) || enabled;
+    }
+
+    public void SetTimerEnabled(string key, bool enabled)
+    {
+        TimerUploads[key] = enabled;
+    }
+
     [JsonIgnore]
     public bool IsLinked => !string.IsNullOrEmpty(Token);
 
+    /// <summary>Where the pairing code is generated.</summary>
     [JsonIgnore]
     public string SettingsUrl => $"{BaseUrl.TrimEnd('/')}/settings/ffxiv";
+
+    /// <summary>The timers page: what has been synced, and which of it sends a push.</summary>
+    [JsonIgnore]
+    public string TimersUrl => $"{BaseUrl.TrimEnd('/')}/ffxiv";
 
     /// <summary>
     /// Validates a server address typed by hand and strips a trailing slash, or returns null when

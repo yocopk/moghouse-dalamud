@@ -12,6 +12,13 @@ public sealed class SnapshotRequest
     /// <summary>Used server-side to warn about clock skew. UTC.</summary>
     [JsonPropertyName("clientTime")] public DateTime ClientTime { get; set; }
 
+    /// <summary>
+    /// Timer keys this snapshot speaks for. The server replaces exactly these, so a key listed
+    /// here with no rows is cleared — which is how switching a timer off in-game removes it from
+    /// the site, without a missing reading looking the same as a deliberate one.
+    /// </summary>
+    [JsonPropertyName("keys")] public List<string> Keys { get; set; } = [];
+
     [JsonPropertyName("timers")] public List<SnapshotTimer> Timers { get; set; } = [];
 }
 

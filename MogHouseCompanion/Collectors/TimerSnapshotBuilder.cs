@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MogHouseCompanion.Collectors;
@@ -19,16 +20,36 @@ public sealed class TimerSnapshotBuilder
     private const int MaxSubKeyLength = 64;
 
     private readonly List<Dto.SnapshotTimer> timers = [];
+    private readonly HashSet<string> declared = new(StringComparer.Ordinal);
     private readonly DateTime now;
+    private readonly Func<string, bool> isEnabled;
 
-    public TimerSnapshotBuilder(DateTime utcNow)
+    /// <param name="isEnabled">
+    /// Whether a timer key may be uploaded at all. Rows for a disabled key are dropped here, so a
+    /// collector cannot leak one by forgetting to check.
+    /// </param>
+    public TimerSnapshotBuilder(DateTime utcNow, Func<string, bool> isEnabled)
     {
         now = utcNow;
+        this.isEnabled = isEnabled;
     }
 
     public IReadOnlyList<Dto.SnapshotTimer> Timers => timers;
 
+    /// <summary>Keys this snapshot speaks for; the server replaces exactly these.</summary>
+    public IReadOnlyCollection<string> DeclaredKeys => declared;
+
     public bool Truncated { get; private set; }
+
+    /// <summary>
+    /// Claims authority over a key. Called even when nothing was added for it: that is what tells
+    /// the server to clear a timer the player switched off, as opposed to one that simply could
+    /// not be read right now.
+    /// </summary>
+    public void Declare(string key)
+    {
+        declared.Add(key);
+    }
 
     /// <summary>
     /// Adds a deadline-shaped timer. A null <paramref name="dueAt"/> records an entity that exists
@@ -65,6 +86,11 @@ public sealed class TimerSnapshotBuilder
 
     private void Add(Dto.SnapshotTimer timer)
     {
+        if (!isEnabled(timer.Key))
+        {
+            return;
+        }
+
         if (timers.Count >= MaxTimers)
         {
             Truncated = true;
@@ -97,6 +123,15 @@ public sealed class TimerSnapshotBuilder
     public string BuildSignature()
     {
         var sb = new StringBuilder();
+
+        // Declared keys are part of the identity: a subsystem becoming readable, or a timer being
+        // switched off, changes what the server should store even when no row moved.
+        foreach (var key in declared.Order(StringComparer.Ordinal))
+        {
+            sb.Append(key).Append(',');
+        }
+
+        sb.Append('#');
 
         foreach (var t in timers)
         {

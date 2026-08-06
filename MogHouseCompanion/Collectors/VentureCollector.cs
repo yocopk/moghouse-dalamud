@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace MogHouseCompanion.Collectors;
@@ -9,6 +10,8 @@ namespace MogHouseCompanion.Collectors;
 public sealed unsafe class VentureCollector : ITimerCollector
 {
     public string Name => "Retainer ventures";
+
+    public IReadOnlyList<string> Keys { get; } = [TimerKeys.Venture];
 
     public bool Collect(TimerSnapshotBuilder builder)
     {

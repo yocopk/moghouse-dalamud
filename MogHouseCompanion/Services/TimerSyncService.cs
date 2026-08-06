@@ -33,14 +33,25 @@ public sealed record SyncStatus
 /// </summary>
 public sealed class TimerSyncService : IDisposable
 {
-    /// <summary>How often the game structs are read and compared.</summary>
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
+    /// <summary>How often the game structs are read. Cheap; the upload rules below are the gate.</summary>
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
 
-    /// <summary>Floor between two uploads, so a burst of changes becomes one request.</summary>
+    /// <summary>The regular cadence: once an hour while logged in, plus once on login.</summary>
+    private static readonly TimeSpan SyncInterval = TimeSpan.FromHours(1);
+
+    /// <summary>Floor between two uploads, so the rules below cannot turn into a burst.</summary>
     private static readonly TimeSpan MinUploadInterval = TimeSpan.FromSeconds(60);
 
-    /// <summary>Upload even without changes, to keep the "last sync" freshness badge honest.</summary>
-    private static readonly TimeSpan Heartbeat = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// An hourly cadence would miss a deadline that lands inside the hour — a 40 minute venture
+    /// dispatched just after a sync would only be reported once it had already passed, arriving
+    /// late. Reading a deadline sooner than the next scheduled sync therefore uploads immediately.
+    /// The server needs the deadline in advance, not the completion.
+    /// </summary>
+    private static bool LandsBeforeNextSync(DateTime? dueAt, DateTime nextSyncAt)
+    {
+        return dueAt.HasValue && dueAt.Value <= nextSyncAt;
+    }
 
     private static readonly TimeSpan RetryBase = TimeSpan.FromSeconds(30);
     private const int MaxRetryExponent = 5;
@@ -85,7 +96,6 @@ public sealed class TimerSyncService : IDisposable
 
         this.framework.Update += OnFrameworkUpdate;
         this.clientState.Login += OnLogin;
-        this.clientState.TerritoryChanged += OnTerritoryChanged;
     }
 
     public SyncStatus Status => status;
@@ -119,12 +129,6 @@ public sealed class TimerSyncService : IDisposable
         RequestSync();
     }
 
-    private void OnTerritoryChanged(uint territoryId)
-    {
-        // Entering the company workshop is what makes voyage data readable at all.
-        RequestSync();
-    }
-
     private void OnFrameworkUpdate(IFramework tick)
     {
         if (!configuration.IsLinked || !Plugin.PlayerState.IsLoaded)
@@ -154,10 +158,16 @@ public sealed class TimerSyncService : IDisposable
         var (snapshot, signature, available, unavailable) = collected.Value;
 
         var force = forceRequested;
-        var changed = signature != lastUploadedSignature;
-        var stale = now - lastSuccessAt >= Heartbeat;
+        var due = now - lastSuccessAt >= SyncInterval;
 
-        if (!force && !changed && !stale)
+        // Only worth an off-schedule upload if the readings actually changed *and* one of them
+        // would come due before we would next report it.
+        var nextSyncAt = lastSuccessAt == DateTime.MinValue ? now : lastSuccessAt + SyncInterval;
+        var urgent =
+            signature != lastUploadedSignature &&
+            snapshot.Timers.Exists(t => LandsBeforeNextSync(t.DueAt, nextSyncAt));
+
+        if (!force && !due && !urgent)
         {
             return;
         }
@@ -189,28 +199,35 @@ public sealed class TimerSyncService : IDisposable
             return null;
         }
 
-        var builder = new TimerSnapshotBuilder(now);
+        var builder = new TimerSnapshotBuilder(now, configuration.IsTimerEnabled);
         var available = new List<string>();
         var unavailable = new List<string>();
 
         foreach (var collector in collectors)
         {
+            var read = false;
+
             try
             {
-                if (collector.Collect(builder))
-                {
-                    available.Add(collector.Name);
-                }
-                else
-                {
-                    unavailable.Add(collector.Name);
-                }
+                read = collector.Collect(builder);
             }
             catch (Exception ex)
             {
-                unavailable.Add(collector.Name);
                 Plugin.Log.Error(ex, $"Collector '{collector.Name}' failed");
             }
+
+            foreach (var key in collector.Keys)
+            {
+                // A switched-off timer is always declared, so the server clears whatever it still
+                // holds. An enabled one is only declared when it was actually readable — otherwise
+                // standing outside the workshop would wipe the voyages we reported earlier.
+                if (!configuration.IsTimerEnabled(key) || read)
+                {
+                    builder.Declare(key);
+                }
+            }
+
+            (read ? available : unavailable).Add(collector.Name);
         }
 
         if (builder.Truncated)
@@ -218,7 +235,8 @@ public sealed class TimerSyncService : IDisposable
             Plugin.Log.Warning($"Timer snapshot hit the {TimerSnapshotBuilder.MaxTimers}-row cap; extra rows dropped.");
         }
 
-        if (builder.Timers.Count == 0)
+        // Nothing read and nothing to clear: an upload would only bump the sync timestamp.
+        if (builder.Timers.Count == 0 && builder.DeclaredKeys.Count == 0)
         {
             return null;
         }
@@ -232,6 +250,7 @@ public sealed class TimerSyncService : IDisposable
                 World = player.HomeWorld.Value.Name.ToString(),
             },
             ClientTime = now,
+            Keys = builder.DeclaredKeys.ToList(),
             Timers = builder.Timers.ToList(),
         };
 
@@ -300,7 +319,7 @@ public sealed class TimerSyncService : IDisposable
 
             case ApiErrorCode.PremiumRequired:
                 // Keep the token: Mog+ can lapse and come back, and re-pairing would be busywork.
-                retryAfter = DateTime.UtcNow + Heartbeat;
+                retryAfter = DateTime.UtcNow + SyncInterval;
                 Publish(false, timerCount, available, unavailable, "FFXIV Sync needs an active Mog+ subscription.", premiumRequired: true);
                 return;
         }
@@ -338,6 +357,5 @@ public sealed class TimerSyncService : IDisposable
     {
         framework.Update -= OnFrameworkUpdate;
         clientState.Login -= OnLogin;
-        clientState.TerritoryChanged -= OnTerritoryChanged;
     }
 }
