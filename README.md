@@ -1,8 +1,14 @@
 # MogHouse Companion
 
-A [Dalamud](https://github.com/goatcorp/Dalamud) plugin that syncs your FFXIV timers to
-[MogHouse](https://mog-house.com) so the site can notify you when they come up — **even with the
-game closed and your PC off**.
+A [Dalamud](https://github.com/goatcorp/Dalamud) plugin that connects FINAL FANTASY XIV to your
+[MogHouse](https://mog-house.com) account: an all-in-one home for quality-of-life tools, added over
+time, each switchable on its own.
+
+**Available now — Timers.** Syncs the timers from the game's own Timers window so the site can
+notify you when they come up, **even with the game closed and your PC off**.
+
+Nothing leaves the game unless you switch it on in the plugin. What is uploaded, and what then
+sends you a push, are two separate choices — the first is made in-game, the second on the website.
 
 > **Status: pre-alpha, not published.**
 > Account linking and timer collection are implemented, but the server endpoint they upload to is

@@ -1,15 +1,15 @@
 {
   "Author": "yocopk",
   "Name": "MogHouse Companion",
-  "Punchline": "Sync your FFXIV timers to MogHouse and get notified when they are up — even with the game closed.",
-  "Description": "Companion plugin for MogHouse (mog-house.com).\n\nReads the timers you already see in the game's own Timers window (CTRL+U) — submarine and airship voyages, retainer ventures, map and leve allowances, Grand Company missions, custom deliveries, fashion report, allied society dailies — and syncs them to your MogHouse profile. MogHouse then sends you a push notification the moment a timer comes up, on the web app and on mobile, even while the game and your PC are off.\n\nYou choose which timers notify you, per character, from mog-house.com/settings/ffxiv. The plugin itself is read-only: it collects your own timers and reports status. It never performs any in-game action.\n\nLink your account with /moghouse. Requires a MogHouse account with an active Mog+ subscription.",
+  "Punchline": "Quality-of-life tools that connect your game to MogHouse. First up: timers pushed to your phone.",
+  "Description": "Companion plugin for MogHouse (mog-house.com).\n\nAn all-in-one home for quality-of-life tools that link FINAL FANTASY XIV to your MogHouse account. Tools are added over time; each one can be switched on or off individually, and nothing leaves the game unless you enable it.\n\nAvailable now — Timers: reads the timers you already see in the game's own Timers window (CTRL+U), including submarine and airship voyages, retainer ventures, map and leve allowances, custom deliveries and allied society dailies, and syncs them to your profile. MogHouse then pushes you a notification the moment one comes up, on web and mobile, even while the game and your PC are off.\n\nThe plugin is read-only: it collects your own data and reports status. It never performs an in-game action.\n\nOpen it with /moghouse. Requires a MogHouse account with an active Mog+ subscription.",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/yocopk/moghouse-dalamud",
   "Tags": [
     "moghouse",
+    "companion",
+    "quality of life",
     "timers",
-    "submarines",
-    "ventures",
     "notifications"
   ],
   "CategoryTags": [

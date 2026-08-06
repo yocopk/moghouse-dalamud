@@ -16,8 +16,12 @@ namespace MogHouseCompanion.Windows;
 /// Decides what leaves the game.
 ///
 /// This is the privacy boundary and it lives in-game on purpose: the player should be able to stop
-/// a timer being uploaded at all, without trusting a website to honour the request. Whether an
-/// uploaded timer then produces a push is a separate, server-side choice.
+/// data being uploaded at all, without trusting a website to honour the request. Whether uploaded
+/// data then produces a push is a separate, server-side choice.
+///
+/// Laid out as one section per tool rather than a flat list of switches. Timers is the only tool
+/// today, but the plugin is meant to grow into a set of quality-of-life features, and a second one
+/// should be a new section here — not a reason to rearrange this window.
 /// </summary>
 public sealed class ConfigWindow : Window, IDisposable
 {
@@ -57,10 +61,17 @@ public sealed class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.TextWrapped("Choose which timers this plugin sends to MogHouse.");
+        ImGui.TextWrapped("Nothing leaves the game unless it is switched on here.");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextColored(ImGuiColors.ParsedGold, "TIMERS");
         ImGui.TextColored(
             ImGuiColors.DalamudGrey,
-            "Switching one off also clears it from your account on the next sync.");
+            "Which timers are sent to MogHouse. Switching one off also clears it from your\n" +
+            "account on the next sync.");
 
         ImGui.Spacing();
 
