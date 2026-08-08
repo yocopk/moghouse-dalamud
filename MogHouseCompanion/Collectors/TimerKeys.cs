@@ -16,4 +16,20 @@ public static class TimerKeys
 
     // gc_mission and fashion_report are clock-based: the server derives them from fixed UTC resets,
     // so the plugin has nothing to collect for them.
+
+    /// <summary>
+    /// Every key the player can switch on or off in-game, in the order the settings window lists
+    /// them. Also what the snapshot reports as its enabled set, so the apps can hide a timer that
+    /// is never going to arrive instead of showing an alert switch that could never fire.
+    /// </summary>
+    public static readonly string[] All =
+    [
+        Submarine,
+        Airship,
+        Venture,
+        MapAllowance,
+        LeveAllowance,
+        CustomDeliveries,
+        AlliedDailies,
+    ];
 }

@@ -19,6 +19,16 @@ public sealed class SnapshotRequest
     /// </summary>
     [JsonPropertyName("keys")] public List<string> Keys { get; set; } = [];
 
+    /// <summary>
+    /// Every timer switched on in the plugin, whether or not it could be read this time.
+    ///
+    /// Distinct from <see cref="Keys"/>: that says "I am speaking for these right now", which a
+    /// switched-off timer also does, once, in order to be cleared. This says "these are the ones
+    /// that will ever arrive", which is what lets the apps hide an alert switch that could never
+    /// fire rather than leaving it there looking broken.
+    /// </summary>
+    [JsonPropertyName("enabled")] public List<string> Enabled { get; set; } = [];
+
     [JsonPropertyName("timers")] public List<SnapshotTimer> Timers { get; set; } = [];
 }
 

@@ -27,14 +27,31 @@ public sealed record SyncStatus
 /// <summary>
 /// Decides when to read the game and when to upload.
 ///
-/// Rather than hooking every addon that could change a timer (retainer bell, voyage dispatch), it
-/// polls the collectors cheaply and uploads only when the readings actually differ. That covers any
-/// trigger without tying the plugin to addon internals that shift between patches.
+/// Reading is polled rather than hooked: the collectors are cheap, and comparing readings catches
+/// every way a timer can change without tying the plugin to addon internals that shift between
+/// patches. What <see cref="ActivityWatcher"/> supplies on top is only a *hint* about when to look
+/// harder — see <see cref="WatchForChanges"/>.
 /// </summary>
 public sealed class TimerSyncService : IDisposable
 {
     /// <summary>How often the game structs are read. Cheap; the upload rules below are the gate.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// How long a hinted window stays open, and how fast it reads while it is.
+    ///
+    /// Dispatching a voyage is the case that needs it: the game only fills in the new return time a
+    /// moment after the panel closes, and the workshop structs go unreadable as soon as you walk
+    /// out — so a thirty-second cadence can miss the change entirely and leave the site showing the
+    /// previous voyage until you next set foot in there.
+    /// </summary>
+    private static readonly TimeSpan WatchWindow = TimeSpan.FromSeconds(90);
+
+    private static readonly TimeSpan WatchPollInterval = TimeSpan.FromSeconds(2);
+
+    /// <summary>Upload floor inside a watched window. Low enough to feel immediate, high enough to
+    /// still coalesce a burst of four submarines being sent out one after another.</summary>
+    private static readonly TimeSpan WatchUploadInterval = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// The heartbeat: upload at least this often even when nothing changed, so the site's freshness
@@ -67,6 +84,7 @@ public sealed class TimerSyncService : IDisposable
     private DateTime lastAttemptAt = DateTime.MinValue;
     private DateTime lastSuccessAt = DateTime.MinValue;
     private DateTime retryAfter = DateTime.MinValue;
+    private DateTime watchUntil = DateTime.MinValue;
     private string lastUploadedSignature = string.Empty;
     private int consecutiveFailures;
 
@@ -110,6 +128,32 @@ public sealed class TimerSyncService : IDisposable
     }
 
     /// <summary>
+    /// Says that something just happened which is *likely* to have moved a timer, so read closely
+    /// for a while and report the moment a reading actually differs.
+    ///
+    /// Deliberately not "upload now": the game has usually not applied the change yet at the point
+    /// the UI closes, and an immediate snapshot would faithfully record the old value. It is also
+    /// only a hint — the ordinary cadence still catches everything, so a caller passing an event
+    /// that turns out to mean nothing costs a handful of struct reads and no request.
+    /// </summary>
+    /// <param name="reason">What triggered it. Log-only, so a misfiring trigger can be identified.</param>
+    public void WatchForChanges(string reason)
+    {
+        var now = DateTime.UtcNow;
+        var opening = now >= watchUntil;
+
+        watchUntil = now + WatchWindow;
+        lastPollAt = DateTime.MinValue;
+
+        // Only the first of a run is logged: a dispatch re-arms this several times as the panels
+        // open and close, and a line per panel would bury everything else.
+        if (opening)
+        {
+            Plugin.Log.Debug($"Watching for timer changes: {reason}.");
+        }
+    }
+
+    /// <summary>
     /// Forgets everything learned about the current link: the last uploaded readings, the retry
     /// backoff and the reported status. Called when the device is unlinked or pointed at another
     /// server, where none of it means anything any more.
@@ -120,6 +164,7 @@ public sealed class TimerSyncService : IDisposable
         lastSuccessAt = DateTime.MinValue;
         lastAttemptAt = DateTime.MinValue;
         retryAfter = DateTime.MinValue;
+        watchUntil = DateTime.MinValue;
         consecutiveFailures = 0;
         forceRequested = false;
         status = SyncStatus.Idle;
@@ -138,7 +183,9 @@ public sealed class TimerSyncService : IDisposable
         }
 
         var now = DateTime.UtcNow;
-        if (now - lastPollAt < PollInterval)
+        var watching = now < watchUntil;
+
+        if (now - lastPollAt < (watching ? WatchPollInterval : PollInterval))
         {
             return;
         }
@@ -170,7 +217,7 @@ public sealed class TimerSyncService : IDisposable
             return;
         }
 
-        if (!force && now - lastAttemptAt < MinUploadInterval)
+        if (!force && now - lastAttemptAt < (watching ? WatchUploadInterval : MinUploadInterval))
         {
             return;
         }
@@ -239,6 +286,8 @@ public sealed class TimerSyncService : IDisposable
             return null;
         }
 
+        var enabled = TimerKeys.All.Where(configuration.IsTimerEnabled).ToList();
+
         var snapshot = new SnapshotRequest
         {
             Character = new SnapshotCharacter
@@ -249,10 +298,15 @@ public sealed class TimerSyncService : IDisposable
             },
             ClientTime = now,
             Keys = builder.DeclaredKeys.ToList(),
+            Enabled = enabled,
             Timers = builder.Timers.ToList(),
         };
 
-        return (snapshot, builder.BuildSignature(), available.ToArray(), unavailable.ToArray());
+        // The enabled set joins the signature: switching a timer off that was never readable here
+        // changes nothing the builder can see, but the site still needs to stop offering it.
+        var signature = $"{string.Join(',', enabled)}${builder.BuildSignature()}";
+
+        return (snapshot, signature, available.ToArray(), unavailable.ToArray());
     }
 
     private async Task UploadAsync(SnapshotRequest snapshot, string signature, string[] available, string[] unavailable)

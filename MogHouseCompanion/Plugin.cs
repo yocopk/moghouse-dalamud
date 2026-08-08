@@ -15,6 +15,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
@@ -25,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private Configuration Configuration { get; }
     private MogHouseApi Api { get; }
     private TimerSyncService SyncService { get; }
+    private ActivityWatcher ActivityWatcher { get; }
     private PairingWindow PairingWindow { get; }
     private ConfigWindow ConfigWindow { get; }
     private StatusWindow StatusWindow { get; }
@@ -34,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Api = new MogHouseApi(Configuration);
         SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
+        ActivityWatcher = new ActivityWatcher(AddonLifecycle, SyncService);
 
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
         ConfigWindow = new ConfigWindow(Configuration, SyncService);
@@ -65,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
         StatusWindow.Dispose();
         ConfigWindow.Dispose();
         PairingWindow.Dispose();
+        ActivityWatcher.Dispose();
         SyncService.Dispose();
         Api.Dispose();
 
