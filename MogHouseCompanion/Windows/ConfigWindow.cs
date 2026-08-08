@@ -29,8 +29,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private static readonly TimerRow[] Rows =
     [
-        new(TimerKeys.Submarine, "Submarine voyages", "Return times, read in the company workshop."),
-        new(TimerKeys.Airship, "Airship voyages", "Return times, read in the company workshop."),
+        new(TimerKeys.Submarine, "Submarine voyages", "Read in the company workshop. Timed to the last one back."),
+        new(TimerKeys.Airship, "Airship voyages", "Read in the company workshop. Timed to the last one back."),
         new(TimerKeys.Venture, "Retainer ventures", "Completion times, read at the retainer bell."),
         new(TimerKeys.MapAllowance, "Treasure maps", "When the next map allowance is up."),
         new(TimerKeys.LeveAllowance, "Leve allowances", "How many you are holding."),

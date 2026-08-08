@@ -21,6 +21,8 @@ public sealed unsafe class VoyageCollector : ITimerCollector
     /// </summary>
     private const uint IslandSanctuaryIntendedUse = 49;
 
+    private readonly record struct Vessel(string Name, DateTime? DueAt, byte Rank);
+
     public string Name => "Workshop voyages";
 
     public IReadOnlyList<string> Keys { get; } = [TimerKeys.Submarine, TimerKeys.Airship];
@@ -36,6 +38,7 @@ public sealed unsafe class VoyageCollector : ITimerCollector
         // Taken by pointer: these structs are tens of kilobytes and must not be copied to the stack.
         var submersibles = &housing->WorkshopTerritory->Submersible;
         var subs = submersibles->Data;
+        var submarines = new List<Vessel>();
 
         for (var i = 0; i < subs.Length; i++)
         {
@@ -45,15 +48,12 @@ public sealed unsafe class VoyageCollector : ITimerCollector
                 continue;
             }
 
-            builder.AddDue(
-                TimerKeys.Submarine,
-                GameTime.FromUnix(sub.ReturnTime),
-                ReadName(sub.Name, i),
-                new Dictionary<string, object> { ["rank"] = sub.RankId });
+            submarines.Add(new Vessel(ReadName(sub.Name, i), GameTime.FromUnix(sub.ReturnTime), sub.RankId));
         }
 
         var airships = &housing->WorkshopTerritory->Airship;
         var ships = airships->Data;
+        var fleet = new List<Vessel>();
 
         for (var i = 0; i < ships.Length; i++)
         {
@@ -63,14 +63,55 @@ public sealed unsafe class VoyageCollector : ITimerCollector
                 continue;
             }
 
-            builder.AddDue(
-                TimerKeys.Airship,
-                GameTime.FromUnix(ship.ReturnTime),
-                ReadName(ship.Name, i),
-                new Dictionary<string, object> { ["rank"] = ship.RankId });
+            fleet.Add(new Vessel(ReadName(ship.Name, i), GameTime.FromUnix(ship.ReturnTime), ship.RankId));
         }
 
+        Emit(builder, TimerKeys.Submarine, submarines);
+        Emit(builder, TimerKeys.Airship, fleet);
+
         return true;
+    }
+
+    /// <summary>
+    /// One row per fleet rather than one per vessel, with the deadline set to the **last** vessel
+    /// due back. A notification then means every one of them is home, which is the point at which
+    /// there is something to do — being told about the first of four is just noise, and you would
+    /// have to go back three more times.
+    ///
+    /// The individual vessels ride along in the payload, so the apps can still list them.
+    /// </summary>
+    private static void Emit(TimerSnapshotBuilder builder, string key, List<Vessel> vessels)
+    {
+        if (vessels.Count == 0)
+        {
+            return;
+        }
+
+        DateTime? lastBack = null;
+        foreach (var vessel in vessels)
+        {
+            if (vessel.DueAt.HasValue && (lastBack == null || vessel.DueAt.Value > lastBack.Value))
+            {
+                lastBack = vessel.DueAt.Value;
+            }
+        }
+
+        var detail = new List<object>(vessels.Count);
+        foreach (var vessel in vessels)
+        {
+            detail.Add(new Dictionary<string, object?>
+            {
+                ["name"] = vessel.Name,
+                ["dueAt"] = vessel.DueAt?.ToString("o"),
+                ["rank"] = vessel.Rank,
+            });
+        }
+
+        builder.AddDue(key, lastBack, payload: new Dictionary<string, object>
+        {
+            ["count"] = vessels.Count,
+            ["vessels"] = detail,
+        });
     }
 
     private static bool IsIslandSanctuary()
@@ -82,7 +123,7 @@ public sealed unsafe class VoyageCollector : ITimerCollector
 
     /// <summary>
     /// Names are fixed-size, null-terminated UTF-8 buffers. Falls back to a slot label so a blank
-    /// name still produces a stable subKey instead of collapsing several vessels into one row.
+    /// name still identifies the vessel instead of showing as empty.
     /// </summary>
     private static string ReadName(Span<byte> raw, int slot)
     {

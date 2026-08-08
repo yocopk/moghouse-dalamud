@@ -1,11 +1,16 @@
+using System;
 using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace MogHouseCompanion.Collectors;
 
 /// <summary>
-/// Retainer ventures. Venture timers only become readable after the retainer bell has been opened
-/// at least once in the session, so an empty result before that is expected, not a failure.
+/// Retainer ventures.
+///
+/// The game fills these in lazily — a retainer can be present with a venture assigned before its
+/// completion timestamp has been populated, which happens around opening the bell. Reporting during
+/// that window would overwrite a good deadline with a blank, so the collector reports nothing until
+/// every assigned venture has a time.
 /// </summary>
 public sealed unsafe class VentureCollector : ITimerCollector
 {
@@ -16,36 +21,57 @@ public sealed unsafe class VentureCollector : ITimerCollector
     public bool Collect(TimerSnapshotBuilder builder)
     {
         var manager = RetainerManager.Instance();
-        if (manager == null || !manager->IsReady)
+        if (manager == null)
         {
             return false;
         }
 
         var retainers = manager->Retainers;
-        var seen = 0;
+        var rows = new List<(string Name, DateTime DueAt)>();
+        var loaded = 0;
+        var incomplete = 0;
 
         for (var i = 0; i < retainers.Length; i++)
         {
             ref var retainer = ref retainers[i];
+
+            // A zero id is an empty slot; it is also what every slot looks like before the retainer
+            // list has loaded, which is the signal that there is nothing to read yet.
             if (retainer.RetainerId == 0)
             {
                 continue;
             }
 
-            seen++;
+            loaded++;
 
-            // No venture assigned: nothing to notify, and emitting a row would only add noise.
+            // Idle retainer: nothing to notify, and a row would only add noise.
             if (retainer.VentureId == 0)
             {
                 continue;
             }
 
-            builder.AddDue(
-                TimerKeys.Venture,
-                GameTime.FromUnix(retainer.VentureComplete),
-                retainer.NameString);
+            var dueAt = GameTime.FromUnix(retainer.VentureComplete);
+            if (dueAt == null)
+            {
+                incomplete++;
+                continue;
+            }
+
+            rows.Add((retainer.NameString, dueAt.Value));
         }
 
-        return seen > 0;
+        // Nothing loaded, or a venture whose completion time has not arrived yet: either way,
+        // claiming authority now would clear deadlines we already reported correctly.
+        if (loaded == 0 || incomplete > 0)
+        {
+            return false;
+        }
+
+        foreach (var row in rows)
+        {
+            builder.AddDue(TimerKeys.Venture, row.DueAt, row.Name);
+        }
+
+        return true;
     }
 }

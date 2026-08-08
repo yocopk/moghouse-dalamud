@@ -36,22 +36,23 @@ public sealed class TimerSyncService : IDisposable
     /// <summary>How often the game structs are read. Cheap; the upload rules below are the gate.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
 
-    /// <summary>The regular cadence: once an hour while logged in, plus once on login.</summary>
+    /// <summary>
+    /// The heartbeat: upload at least this often even when nothing changed, so the site's freshness
+    /// badge stays honest. It is a floor on staleness, not the only reason to sync.
+    /// </summary>
     private static readonly TimeSpan SyncInterval = TimeSpan.FromHours(1);
 
-    /// <summary>Floor between two uploads, so the rules below cannot turn into a burst.</summary>
-    private static readonly TimeSpan MinUploadInterval = TimeSpan.FromSeconds(60);
-
     /// <summary>
-    /// An hourly cadence would miss a deadline that lands inside the hour — a 40 minute venture
-    /// dispatched just after a sync would only be reported once it had already passed, arriving
-    /// late. Reading a deadline sooner than the next scheduled sync therefore uploads immediately.
-    /// The server needs the deadline in advance, not the completion.
+    /// Floor between two uploads. Changes are reported as they happen — dispatching a voyage or a
+    /// venture should show up on the site within about a minute, not at the next heartbeat — and
+    /// this is what keeps a burst of them to a single request.
+    ///
+    /// An earlier version only uploaded on the hour, plus early if a deadline landed inside it.
+    /// That looked equivalent and was not: data that had merely *become readable* — the workshop
+    /// filling in the moment you walk in — was never urgent, so leaving again before the hour was
+    /// up meant it never reached the server at all.
     /// </summary>
-    private static bool LandsBeforeNextSync(DateTime? dueAt, DateTime nextSyncAt)
-    {
-        return dueAt.HasValue && dueAt.Value <= nextSyncAt;
-    }
+    private static readonly TimeSpan MinUploadInterval = TimeSpan.FromSeconds(60);
 
     private static readonly TimeSpan RetryBase = TimeSpan.FromSeconds(30);
     private const int MaxRetryExponent = 5;
@@ -158,16 +159,13 @@ public sealed class TimerSyncService : IDisposable
         var (snapshot, signature, available, unavailable) = collected.Value;
 
         var force = forceRequested;
+
+        // Anything new to say — a dispatched voyage, a subsystem that just became readable, a timer
+        // switched off — or the heartbeat coming round.
+        var changed = signature != lastUploadedSignature;
         var due = now - lastSuccessAt >= SyncInterval;
 
-        // Only worth an off-schedule upload if the readings actually changed *and* one of them
-        // would come due before we would next report it.
-        var nextSyncAt = lastSuccessAt == DateTime.MinValue ? now : lastSuccessAt + SyncInterval;
-        var urgent =
-            signature != lastUploadedSignature &&
-            snapshot.Timers.Exists(t => LandsBeforeNextSync(t.DueAt, nextSyncAt));
-
-        if (!force && !due && !urgent)
+        if (!force && !changed && !due)
         {
             return;
         }
