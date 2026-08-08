@@ -23,6 +23,9 @@ public sealed class MogHouseApi : IDisposable
 
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
+    /// <summary>Ceiling for time-sensitive calls; see <see cref="PostEventAsync"/>.</summary>
+    private static readonly TimeSpan EventTimeout = TimeSpan.FromSeconds(10);
+
     private readonly Configuration configuration;
     private readonly HttpClient http;
 
@@ -69,12 +72,39 @@ public sealed class MogHouseApi : IDisposable
             ct);
     }
 
+    /// <summary>
+    /// Reports something that just happened, for immediate delivery.
+    ///
+    /// Given its own short timeout: the only event today is a duty pop, whose confirm window is 45
+    /// seconds, so a request still in flight after ten of them has already lost the race and should
+    /// free the slot rather than keep trying.
+    /// </summary>
+    public Task<ApiResponse<GameEventResult>> PostEventAsync(GameEventRequest gameEvent, CancellationToken ct = default)
+    {
+        return PostAsync<GameEventRequest, GameEventResult>(
+            "/api/plugin/v1/events",
+            gameEvent,
+            authenticated: true,
+            ct,
+            timeout: EventTimeout);
+    }
+
     private async Task<ApiResponse<TOut>> PostAsync<TIn, TOut>(
         string path,
         TIn body,
         bool authenticated,
-        CancellationToken ct)
+        CancellationToken ct,
+        TimeSpan? timeout = null)
     {
+        // A per-call deadline on top of the client's, linked to the caller's token so cancelling
+        // either one cancels the request.
+        using var deadline = timeout.HasValue
+            ? CancellationTokenSource.CreateLinkedTokenSource(ct)
+            : null;
+
+        deadline?.CancelAfter(timeout!.Value);
+        var token = deadline?.Token ?? ct;
+
         try
         {
             var json = JsonSerializer.Serialize(body, JsonOptions);
@@ -89,8 +119,8 @@ public sealed class MogHouseApi : IDisposable
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuration.Token);
             }
 
-            using var response = await http.SendAsync(request, ct).ConfigureAwait(false);
-            var raw = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            using var response = await http.SendAsync(request, token).ConfigureAwait(false);
+            var raw = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
 
             var parsed = TryDeserialize<TOut>(raw);
             if (parsed != null)

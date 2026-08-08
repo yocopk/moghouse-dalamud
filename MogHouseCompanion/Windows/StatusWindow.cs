@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -13,11 +13,12 @@ namespace MogHouseCompanion.Windows;
 /// <summary>
 /// What the plugin is doing right now: who it is linked to, what it can read, when it last synced.
 /// Everything you can change lives in the settings window; this one only reports.
+///
+/// Laid out as one card per module, so the answer to "is this working" is the pill at the top and
+/// the detail is underneath it rather than the other way round.
 /// </summary>
 public sealed class StatusWindow : Window, IDisposable
 {
-    private const float LabelWidth = 130f;
-
     /// <summary>Past this age the sync is old enough that the player should be told.</summary>
     private static readonly TimeSpan StaleAfter = TimeSpan.FromHours(24);
 
@@ -40,7 +41,7 @@ public sealed class StatusWindow : Window, IDisposable
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(460, 300),
+            MinimumSize = new Vector2(470, 340),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
     }
@@ -49,64 +50,189 @@ public sealed class StatusWindow : Window, IDisposable
 
     public override void Draw()
     {
-        DrawAccount();
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        DrawCharacter();
-
-        if (configuration.IsLinked)
-        {
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            DrawSync();
-        }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        if (ImGui.Button("Settings"))
-        {
-            configWindow.IsOpen = true;
-        }
-
-        ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.DalamudGrey, "Choose which timers get sent");
-    }
-
-    private void DrawAccount()
-    {
-        Field("Server", configuration.BaseUrl);
+        DrawHeader();
 
         if (!configuration.IsLinked)
         {
-            Field("Account", "Not linked", ImGuiColors.DalamudYellow);
+            DrawNotLinked();
+            return;
+        }
+
+        Theme.Heading(FontAwesomeIcon.Hourglass, "Timers");
+        Theme.Card("##timers", DrawSync);
+
+        Theme.Heading(FontAwesomeIcon.Dungeon, "Duty Finder");
+        Theme.Card("##duty", DrawDuty);
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawFooter();
+    }
+
+    /// <summary>Who this is and whether it is working — the two things worth reading first.</summary>
+    private void DrawHeader()
+    {
+        Theme.Icon(FontAwesomeIcon.WandMagicSparkles, Theme.Gold);
+        ImGui.SameLine(0, 8 * ImGuiHelpers.GlobalScale);
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextColored(Theme.GoldSoft, "MogHouse Companion");
+
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - PillWidth());
+        DrawStatusPill();
+
+        var player = Plugin.PlayerState;
+        var character = player.IsLoaded
+            ? $"{player.CharacterName} @ {(player.HomeWorld.IsValid ? player.HomeWorld.Value.Name.ToString() : "unknown world")}"
+            : "Not logged in";
+
+        ImGui.TextColored(Theme.Muted, $"{character}  ·  {Host()}");
+
+        ImGui.Spacing();
+    }
+
+    private void DrawStatusPill()
+    {
+        var status = syncService.Status;
+
+        if (!configuration.IsLinked)
+        {
+            Theme.Pill("Not linked", Theme.Muted);
+            return;
+        }
+
+        if (status.PremiumRequired)
+        {
+            Theme.Pill("Mog+ needed", Theme.Premium);
+            return;
+        }
+
+        if (status.LastError is { Length: > 0 })
+        {
+            Theme.Pill("Error", Theme.Bad);
+            return;
+        }
+
+        Theme.Pill("Linked", Theme.Good);
+    }
+
+    private void DrawNotLinked()
+    {
+        Theme.Card("##link", () =>
+        {
+            Theme.Hint(
+                "Link this PC to your MogHouse account and your in-game timers turn into " +
+                "notifications on your phone — including while the game is closed.");
 
             ImGui.Spacing();
-            ImGui.TextWrapped("Link this PC to your MogHouse account to sync your in-game timers.");
-            ImGui.Spacing();
 
-            if (ImGui.Button("Link account…"))
+            if (Theme.PrimaryButton("Link account…"))
             {
                 pairingWindow.IsOpen = true;
+            }
+        });
+    }
+
+    private void DrawSync()
+    {
+        var status = syncService.Status;
+
+        if (status.PremiumRequired)
+        {
+            ImGui.TextColored(Theme.Premium, "Syncing is paused: Mog+ is not active on this account.");
+            Theme.Hint(
+                "Your link is kept, so it resumes on its own once Mog+ is active again — you will " +
+                "not have to pair this device a second time.");
+
+            ImGui.Spacing();
+
+            if (Theme.PrimaryButton("Manage Mog+"))
+            {
+                Util.OpenLink($"{configuration.BaseUrl.TrimEnd('/')}/mogplus");
             }
 
             return;
         }
 
-        Field("Account", "Linked", ImGuiColors.HealerGreen);
-        Field("Device", configuration.TokenLabel);
+        Theme.Field("Last sync", DescribeLastSync(status), StaleColor(status));
+
+        if (status.LastSuccessAt.HasValue)
+        {
+            Theme.Field("Timers sent", status.TimerCount.ToString());
+        }
+
+        if (status.Available.Length > 0)
+        {
+            Theme.Field("Reading", string.Join(", ", status.Available), Theme.Good);
+        }
+
+        if (status.Unavailable.Length > 0)
+        {
+            Theme.Field("No data yet", string.Join(", ", status.Unavailable), Theme.Muted);
+        }
+
+        if (status.LastError is { Length: > 0 } error)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(Theme.Bad, error);
+        }
 
         ImGui.Spacing();
 
-        if (ImGui.Button("Open my timers"))
+        using (ImRaii.Disabled(status.IsSyncing))
+        {
+            if (Theme.PrimaryButton(status.IsSyncing ? "Syncing…" : "Sync now"))
+            {
+                syncService.RequestSync();
+            }
+        }
+
+        ImGui.SameLine();
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextColored(Theme.Muted, "Uploads as soon as something changes");
+
+        if (status.Unavailable.Length > 0)
+        {
+            ImGui.Spacing();
+            Theme.Hint(
+                "Voyage timers are only readable inside the company workshop, and venture timers " +
+                "after opening the retainer bell. That is a limit of the game, not of the plugin.");
+        }
+    }
+
+    private void DrawDuty()
+    {
+        if (!configuration.DutyFinderPush)
+        {
+            Theme.Field("Duty pop push", "Off", Theme.Muted);
+            Theme.Hint("Switch it on in Settings to get a buzz when the Duty Finder pops.");
+            return;
+        }
+
+        Theme.Field("Duty pop push", "On", Theme.Good);
+        Theme.Hint(
+            configuration.DutyPushOnlyWhenAway
+                ? "Sent the moment the confirm window appears, and only while the game is not the " +
+                  "window you are looking at. You have about 45 seconds to commence."
+                : "Sent the moment the confirm window appears, every time — including while you are " +
+                  "looking straight at the game.");
+    }
+
+    private void DrawFooter()
+    {
+        if (Theme.PrimaryButton("My Companion page"))
         {
             Util.OpenLink(configuration.TimersUrl);
+        }
+
+        ImGui.SameLine();
+
+        if (ImGui.Button("Settings"))
+        {
+            configWindow.IsOpen = true;
         }
 
         ImGui.SameLine();
@@ -117,84 +243,14 @@ public sealed class StatusWindow : Window, IDisposable
         }
     }
 
-    private static void DrawCharacter()
+    private Vector4? StaleColor(SyncStatus status)
     {
-        var player = Plugin.PlayerState;
-        if (!player.IsLoaded)
+        if (!status.LastSuccessAt.HasValue)
         {
-            Field("Character", "Not logged in", ImGuiColors.DalamudGrey);
-            return;
+            return Theme.Muted;
         }
 
-        var world = player.HomeWorld.IsValid ? player.HomeWorld.Value.Name.ToString() : "unknown world";
-        Field("Character", $"{player.CharacterName} @ {world}");
-    }
-
-    private void DrawSync()
-    {
-        var status = syncService.Status;
-
-        if (status.PremiumRequired)
-        {
-            ImGui.TextColored(ImGuiColors.DalamudYellow, "FFXIV Sync requires an active Mog+ subscription.");
-            ImGui.TextWrapped(
-                "Your link is kept, so syncing resumes on its own once Mog+ is active again — " +
-                "you will not have to pair this device a second time.");
-
-            ImGui.Spacing();
-
-            if (ImGui.Button("Manage Mog+"))
-            {
-                Util.OpenLink($"{configuration.BaseUrl.TrimEnd('/')}/mogplus");
-            }
-
-            ImGui.Spacing();
-        }
-
-        Field("Last sync", DescribeLastSync(status));
-
-        if (status.LastSuccessAt.HasValue)
-        {
-            Field("Timers sent", status.TimerCount.ToString());
-        }
-
-        if (status.Available.Length > 0)
-        {
-            Field("Reading", string.Join(", ", status.Available));
-        }
-
-        if (status.Unavailable.Length > 0)
-        {
-            Field("No data yet", string.Join(", ", status.Unavailable), ImGuiColors.DalamudGrey);
-        }
-
-        if (status.LastError is { Length: > 0 } error)
-        {
-            ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudRed, error);
-        }
-
-        ImGui.Spacing();
-
-        using (ImRaii.Disabled(status.IsSyncing))
-        {
-            if (ImGui.Button(status.IsSyncing ? "Syncing…" : "Sync now"))
-            {
-                syncService.RequestSync();
-            }
-        }
-
-        ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.DalamudGrey, "Syncs on its own every hour, and when you log in");
-
-        if (status.Unavailable.Length > 0)
-        {
-            ImGui.Spacing();
-            ImGui.TextColored(
-                ImGuiColors.DalamudGrey,
-                "Voyage timers are only readable inside the company workshop, and venture timers\n" +
-                "after opening the retainer bell. This is a limit of the game, not of the plugin.");
-        }
+        return DateTime.UtcNow - status.LastSuccessAt.Value > StaleAfter ? Theme.Bad : null;
     }
 
     private static string DescribeLastSync(SyncStatus status)
@@ -216,25 +272,25 @@ public sealed class StatusWindow : Window, IDisposable
         return age > StaleAfter ? $"{text} (stale)" : text;
     }
 
-    private static void Field(string label, string value)
+    /// <summary>Host only: the full URL is settings detail, and this line is identity.</summary>
+    private string Host()
     {
-        Field(label, value, null);
+        return Uri.TryCreate(configuration.BaseUrl, UriKind.Absolute, out var uri)
+            ? uri.Host
+            : configuration.BaseUrl;
     }
 
-    private static void Field(string label, string value, Vector4? color)
+    /// <summary>Right-aligning the pill needs its width before it is drawn.</summary>
+    private float PillWidth()
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextColored(ImGuiColors.DalamudGrey, label);
-        ImGui.SameLine(LabelWidth * ImGuiHelpers.GlobalScale);
+        var status = syncService.Status;
 
-        if (color.HasValue)
-        {
-            ImGui.TextColored(color.Value, value);
-        }
-        else
-        {
-            ImGui.Text(value);
-        }
+        var text = !configuration.IsLinked ? "Not linked"
+            : status.PremiumRequired ? "Mog+ needed"
+            : status.LastError is { Length: > 0 } ? "Error"
+            : "Linked";
+
+        return ImGui.CalcTextSize(text).X + (16 * ImGuiHelpers.GlobalScale);
     }
 
     private void Unlink()

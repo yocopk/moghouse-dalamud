@@ -48,6 +48,18 @@ public class Configuration : IPluginConfiguration
         TimerUploads[key] = enabled;
     }
 
+    /// <summary>Whether a Duty Finder pop is reported to MogHouse so it can push to your phone.</summary>
+    public bool DutyFinderPush { get; set; } = true;
+
+    /// <summary>
+    /// Hold the duty push back while the game is the window you are actually using.
+    ///
+    /// On by default because the alternative is a phone buzzing in your pocket a second after the
+    /// game has already made a noise at you — the notification is for when you have walked away,
+    /// and the game window being in the background is the closest thing to a signal for that.
+    /// </summary>
+    public bool DutyPushOnlyWhenAway { get; set; } = true;
+
     [JsonIgnore]
     public bool IsLinked => !string.IsNullOrEmpty(Token);
 

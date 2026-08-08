@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -52,47 +52,50 @@ public sealed class PairingWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.TextWrapped(
-            "Open the FFXIV Sync settings on MogHouse, generate a pairing code, and paste it here. " +
-            "A code lasts 5 minutes and works once.");
+        Theme.Heading(FontAwesomeIcon.Link, "Link this PC");
 
-        ImGui.Spacing();
-
-        if (ImGui.Button("Open FFXIV Sync settings"))
+        Theme.Card("##pairing", () =>
         {
-            Util.OpenLink(configuration.SettingsUrl);
-        }
+            Theme.Hint(
+                "Open the Companion settings on MogHouse, generate a pairing code, and paste it " +
+                "here. A code lasts 5 minutes and works once.");
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+            ImGui.Spacing();
 
-        using (ImRaii.Disabled(isPairing))
-        {
-            ImGui.SetNextItemWidth(180 * ImGuiHelpers.GlobalScale);
-
-            var submitted = ImGui.InputText(
-                "Pairing code###MogHouseCompanionPairingCode",
-                ref codeInput,
-                CodeInputCapacity,
-                ImGuiInputTextFlags.CharsUppercase | ImGuiInputTextFlags.CharsNoBlank |
-                ImGuiInputTextFlags.EnterReturnsTrue);
-
-            ImGui.SameLine();
-
-            if (ImGui.Button("Link") || submitted)
+            if (ImGui.Button("Open MogHouse settings"))
             {
-                Submit();
+                Util.OpenLink(configuration.SettingsUrl);
             }
-        }
 
-        if (statusMessage.Length == 0)
-        {
-            return;
-        }
+            ImGui.Spacing();
 
-        ImGui.Spacing();
-        ImGui.TextColored(statusIsError ? ImGuiColors.DalamudRed : ImGuiColors.HealerGreen, statusMessage);
+            using (ImRaii.Disabled(isPairing))
+            {
+                ImGui.SetNextItemWidth(180 * ImGuiHelpers.GlobalScale);
+
+                var submitted = ImGui.InputText(
+                    "###MogHouseCompanionPairingCode",
+                    ref codeInput,
+                    CodeInputCapacity,
+                    ImGuiInputTextFlags.CharsUppercase | ImGuiInputTextFlags.CharsNoBlank |
+                    ImGuiInputTextFlags.EnterReturnsTrue);
+
+                ImGui.SameLine();
+
+                if (Theme.PrimaryButton(isPairing ? "Linking…" : "Link") || submitted)
+                {
+                    Submit();
+                }
+            }
+
+            if (statusMessage.Length == 0)
+            {
+                return;
+            }
+
+            ImGui.Spacing();
+            ImGui.TextColored(statusIsError ? Theme.Bad : Theme.Good, statusMessage);
+        });
     }
 
     private void Submit()

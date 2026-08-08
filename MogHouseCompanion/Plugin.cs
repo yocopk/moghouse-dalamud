@@ -27,6 +27,7 @@ public sealed class Plugin : IDalamudPlugin
     private MogHouseApi Api { get; }
     private TimerSyncService SyncService { get; }
     private ActivityWatcher ActivityWatcher { get; }
+    private DutyWatcher DutyWatcher { get; }
     private PairingWindow PairingWindow { get; }
     private ConfigWindow ConfigWindow { get; }
     private StatusWindow StatusWindow { get; }
@@ -37,6 +38,7 @@ public sealed class Plugin : IDalamudPlugin
         Api = new MogHouseApi(Configuration);
         SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
         ActivityWatcher = new ActivityWatcher(AddonLifecycle, SyncService);
+        DutyWatcher = new DutyWatcher(Configuration, Api, AddonLifecycle);
 
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
         ConfigWindow = new ConfigWindow(Configuration, SyncService);
@@ -68,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
         StatusWindow.Dispose();
         ConfigWindow.Dispose();
         PairingWindow.Dispose();
+        DutyWatcher.Dispose();
         ActivityWatcher.Dispose();
         SyncService.Dispose();
         Api.Dispose();

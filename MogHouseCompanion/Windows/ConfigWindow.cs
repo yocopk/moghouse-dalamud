@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -19,9 +18,9 @@ namespace MogHouseCompanion.Windows;
 /// data being uploaded at all, without trusting a website to honour the request. Whether uploaded
 /// data then produces a push is a separate, server-side choice.
 ///
-/// Laid out as one section per tool rather than a flat list of switches. Timers is the only tool
-/// today, but the plugin is meant to grow into a set of quality-of-life features, and a second one
-/// should be a new section here — not a reason to rearrange this window.
+/// Laid out as one section per tool rather than a flat list of switches, because the plugin is a
+/// set of quality-of-life features that happens to have started with timers — a third one should be
+/// a new section here, not a reason to rearrange the window.
 /// </summary>
 public sealed class ConfigWindow : Window, IDisposable
 {
@@ -52,7 +51,7 @@ public sealed class ConfigWindow : Window, IDisposable
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(470, 420),
+            MinimumSize = new Vector2(500, 460),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
     }
@@ -61,17 +60,26 @@ public sealed class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
+        Theme.Icon(FontAwesomeIcon.Lock, Theme.Gold);
+        ImGui.SameLine(0, 8 * ImGuiHelpers.GlobalScale);
         ImGui.TextWrapped("Nothing leaves the game unless it is switched on here.");
+
+        Theme.Heading(FontAwesomeIcon.Hourglass, "Timers");
+        Theme.Card("##timers", DrawTimers);
+
+        Theme.Heading(FontAwesomeIcon.Dungeon, "Duty Finder");
+        Theme.Card("##duty", DrawDuty);
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "TIMERS");
-        ImGui.TextColored(
-            ImGuiColors.DalamudGrey,
-            "Which timers are sent to MogHouse. Switching one off also clears it from your\n" +
-            "account on the next sync.");
+        DrawAdvanced();
+    }
+
+    private void DrawTimers()
+    {
+        Theme.Hint("Switching one off also clears it from your account on the next sync.");
 
         ImGui.Spacing();
 
@@ -88,33 +96,24 @@ public sealed class ConfigWindow : Window, IDisposable
         }
 
         ImGui.Spacing();
-        ImGui.Separator();
 
         foreach (var row in Rows)
         {
             DrawTimerRow(row);
         }
 
-        ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.TextColored(
-            ImGuiColors.DalamudGrey,
-            "Grand Company and Fashion Report reminders run off fixed resets, so they need no data\n" +
+        Theme.Hint(
+            "Grand Company and Fashion Report reminders run off fixed resets, so they need no data " +
             "from the game and are switched on from the website.");
 
         ImGui.Spacing();
 
-        if (ImGui.Button("Choose which ones notify me"))
+        if (Theme.PrimaryButton("Choose which ones notify me"))
         {
             Util.OpenLink(configuration.TimersUrl);
         }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        DrawAdvanced();
     }
 
     private void DrawTimerRow(TimerRow row)
@@ -134,7 +133,47 @@ public sealed class ConfigWindow : Window, IDisposable
 
         using (ImRaii.PushIndent(26f))
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, row.Description);
+            ImGui.TextColored(Theme.Muted, row.Description);
+        }
+    }
+
+    private void DrawDuty()
+    {
+        var push = configuration.DutyFinderPush;
+
+        if (ImGui.Checkbox("Tell MogHouse when a duty pops###MogHouseCompanionDutyPush", ref push))
+        {
+            configuration.DutyFinderPush = push;
+            configuration.Save();
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "Sends the duty or roulette name so the push can say what popped.\n" +
+                "The plugin never presses anything: commencing is yours to do, at the keyboard.");
+        }
+
+        ImGui.Spacing();
+
+        using (ImRaii.Disabled(!push))
+        {
+            var onlyAway = configuration.DutyPushOnlyWhenAway;
+
+            if (ImGui.Checkbox("Only when I am not looking at the game###MogHouseCompanionDutyAway", ref onlyAway))
+            {
+                configuration.DutyPushOnlyWhenAway = onlyAway;
+                configuration.Save();
+            }
+
+            using (ImRaii.PushIndent(26f))
+            {
+                ImGui.TextColored(
+                    Theme.Muted,
+                    "Stays quiet while the game window is the one in front of you — it has already\n" +
+                    "made a noise at you, and your pocket does not need to as well.");
+            }
         }
     }
 
@@ -161,7 +200,7 @@ public sealed class ConfigWindow : Window, IDisposable
             return;
         }
 
-        ImGui.TextWrapped(
+        Theme.Hint(
             "Which MogHouse instance this plugin talks to. Leave it alone unless you are testing " +
             "against a development server.");
 
@@ -196,12 +235,12 @@ public sealed class ConfigWindow : Window, IDisposable
 
         if (normalized == null)
         {
-            ImGui.TextColored(ImGuiColors.DalamudRed, "Enter a full http:// or https:// address.");
+            ImGui.TextColored(Theme.Bad, "Enter a full http:// or https:// address.");
         }
         else if (changed && configuration.IsLinked)
         {
             ImGui.TextColored(
-                ImGuiColors.DalamudYellow,
+                Theme.GoldSoft,
                 "This will unlink the device: a token only works on the server that issued it.");
         }
     }
