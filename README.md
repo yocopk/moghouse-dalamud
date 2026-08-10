@@ -4,16 +4,18 @@ A [Dalamud](https://github.com/goatcorp/Dalamud) plugin that connects FINAL FANT
 [MogHouse](https://mog-house.com) account: an all-in-one home for quality-of-life tools, added over
 time, each switchable on its own.
 
-**Available now — Timers.** Syncs the timers from the game's own Timers window so the site can
-notify you when they come up, **even with the game closed and your PC off**.
+**Timers.** Syncs the timers from the game's own Timers window so the site can notify you when they
+come up, **even with the game closed and your PC off**.
+
+**Duty Finder.** When the confirm window pops, MogHouse pushes the duty or roulette name to your
+phone while the window is still open.
 
 Nothing leaves the game unless you switch it on in the plugin. What is uploaded, and what then
 sends you a push, are two separate choices — the first is made in-game, the second on the website.
 
-> **Status: pre-alpha, not published.**
-> Account linking and timer collection are implemented, but the server endpoint they upload to is
-> still being built, so nothing has been tested end to end yet. There is no release and no public
-> plugin repository entry — the source is public because Dalamud installs plugins from public
+> **Status: beta, not published.**
+> Both modules work end to end against the development server. There is no release and no public
+> plugin repository entry yet — the source is public because Dalamud installs plugins from public
 > download URLs, not because the plugin is ready to install.
 
 ## How it works
@@ -30,18 +32,26 @@ FFXIV + Dalamud
                                           cron sweep ───┴──▶ web push / mobile push
 ```
 
-You pick **which** timers notify you, per character, on
-[mog-house.com/settings/ffxiv](https://mog-house.com/settings/ffxiv). The plugin has no alert
-configuration of its own on purpose: one source of truth means the website and the mobile app can
-never disagree about what should fire.
+The two halves answer different questions, and both are deliberate. **Which timers leave the game
+at all** is decided in the plugin, in-game — that is the privacy boundary, and it should not depend
+on a website honouring a request. **Which of the ones that arrive send you a push** is decided on
+[mog-house.com/ffxiv](https://mog-house.com/ffxiv), per character, so the website and the mobile app
+can never disagree about what should fire.
+
+A timer switched off in the plugin is cleared from your account on the next sync, and the site stops
+offering a notification switch for it.
 
 ### Timer coverage
 
 | Collector | Timers | Readable when |
 |---|---|---|
-| Workshop voyages | Submarine and airship returns | inside the FC workshop |
+| Workshop voyages | One deadline per fleet, set to the **last** vessel back | inside the FC workshop |
 | Retainer ventures | Venture completion, per retainer | after opening the retainer bell |
 | Allowances | Treasure map, leves, custom deliveries, allied society dailies | always, once logged in |
+
+A voyage is reported as a single row rather than one per vessel: being told about the first of four
+submarines is noise, since you would have to walk back three more times. The individual vessels ride
+along so the apps can still list them.
 
 Grand Company missions and the fashion report are driven by fixed weekly/daily resets, so the server
 derives them on its own and the plugin collects nothing for them. Jumbo Cactpot is excluded
@@ -54,10 +64,19 @@ running.
 
 ### When it syncs
 
-The plugin reads the collectors every 15 seconds and uploads only when the values actually changed,
-with a minimum of 60 seconds between uploads and a heartbeat every 10 minutes so the website can
-tell how fresh the data is. Logging in and changing zone also trigger a check. Nothing is hooked
-into individual game windows, so a patch that moves an addon around cannot break syncing.
+The plugin reads the collectors every 30 seconds and uploads only when the values actually changed,
+with a floor of 60 seconds between uploads and an hourly heartbeat so the website can tell how fresh
+the data is. Logging in triggers a check.
+
+Opening or closing the voyage panel or the retainer bell opens a 90-second window where it reads
+every 2 seconds and uploads within 10. That is a *hint*, not a hook on their contents: the workshop
+structures go unreadable the moment you leave, and the game fills in a new return time a beat after
+the panel closes, so sending four submarines out and walking straight to the aetheryte could
+otherwise slip between two polls. A patch that renames one of those windows costs the fast path and
+nothing else — the ordinary cadence still catches everything.
+
+The Duty Finder is the exception to all of it. A pop is an event that expires in 45 seconds, so it
+is reported the moment the confirm window appears and delivered on that request, never retried.
 
 ## Requirements
 
@@ -67,11 +86,11 @@ into individual game windows, so a patch that moves an addon around cannot break
 
 ## Installing
 
-Not available yet. Once the first release is published, add this URL under
-`Dalamud Settings → Experimental → Custom Plugin Repositories`:
+Not available yet — there is no release, so the URL below still 404s. Once the first version is
+tagged, add it under `Dalamud Settings → Experimental → Custom Plugin Repositories`:
 
 ```
-https://mog-house.com/dalamud/pluginmaster.json
+https://raw.githubusercontent.com/yocopk/moghouse-dalamud/main/repo.json
 ```
 
 Then install **MogHouse Companion** from `/xlplugins`.
@@ -114,13 +133,21 @@ a GitHub release, and regenerates `repo.json` (the Dalamud plugin manifest list)
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-`https://mog-house.com/dalamud/pluginmaster.json` serves that `repo.json`.
+`repo.json` is served straight off `main`, so the repository URL above starts working with that
+first tag and needs nothing hosted on mog-house.com.
+
+The installer icon is [`images/icon.png`](images/icon.png) — the MogHouse app icon, 512×512, which
+is also the size and location the official Dalamud repository expects if this is ever submitted
+there. The manifest points at it by raw URL, so it travels into `repo.json` on its own.
 
 ## What gets sent
 
-Only your own timer telemetry: character name, home world, content ID, and the due-times / counts
-listed above. No chat, no inventory, no other players, no Free Company data beyond the workshop
-timers your own character can see. Everything is scoped to the account the token belongs to.
+Only your own telemetry: character name, home world, content ID, the due-times / counts listed
+above, and — when the Duty Finder module is on — the name of the duty or roulette that just popped,
+which is the same thing the game is showing you on screen at that moment.
+
+No chat, no inventory, no other players, no Free Company data beyond the workshop timers your own
+character can see. Everything is scoped to the account the token belongs to.
 
 Deleting a character in the MogHouse UI, or deleting your account, removes the data.
 
