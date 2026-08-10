@@ -40,14 +40,11 @@ public sealed class ConfigWindow : Window, IDisposable
     private readonly Configuration configuration;
     private readonly TimerSyncService syncService;
 
-    private string serverDraft;
-
     public ConfigWindow(Configuration configuration, TimerSyncService syncService)
         : base("MogHouse Companion — Settings###MogHouseCompanionConfig")
     {
         this.configuration = configuration;
         this.syncService = syncService;
-        serverDraft = configuration.BaseUrl;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -69,12 +66,6 @@ public sealed class ConfigWindow : Window, IDisposable
 
         Theme.Heading(FontAwesomeIcon.Dungeon, "Duty Finder");
         Theme.Card("##duty", DrawDuty);
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        DrawAdvanced();
     }
 
     private void DrawTimers()
@@ -213,82 +204,5 @@ public sealed class ConfigWindow : Window, IDisposable
 
         configuration.Save();
         syncService.RequestSync();
-    }
-
-    /// <summary>
-    /// Server selection. Collapsed and worded as a warning, because pointing a normal user at the
-    /// wrong instance would silently stop their notifications.
-    /// </summary>
-    private void DrawAdvanced()
-    {
-        if (!ImGui.CollapsingHeader("Advanced"))
-        {
-            serverDraft = configuration.BaseUrl;
-            return;
-        }
-
-        Theme.Hint(
-            "Which MogHouse instance this plugin talks to. Leave it alone unless you are testing " +
-            "against a development server.");
-
-        ImGui.Spacing();
-
-        if (ImGui.Button("Production"))
-        {
-            serverDraft = Configuration.ProdBaseUrl;
-        }
-
-        ImGui.SameLine();
-
-        if (ImGui.Button("Development"))
-        {
-            serverDraft = Configuration.DevBaseUrl;
-        }
-
-        ImGui.Spacing();
-        ImGui.SetNextItemWidth(320 * ImGuiHelpers.GlobalScale);
-        ImGui.InputText("Server###MogHouseCompanionBaseUrl", ref serverDraft, 256);
-
-        var normalized = Configuration.NormalizeBaseUrl(serverDraft);
-        var changed = normalized != null && normalized != configuration.BaseUrl;
-
-        using (ImRaii.Disabled(!changed))
-        {
-            if (ImGui.Button("Apply") && normalized != null)
-            {
-                ApplyServer(normalized);
-            }
-        }
-
-        if (normalized == null)
-        {
-            ImGui.TextColored(Theme.Bad, "Enter a full http:// or https:// address.");
-        }
-        else if (changed && configuration.IsLinked)
-        {
-            ImGui.TextColored(
-                Theme.GoldSoft,
-                "This will unlink the device: a token only works on the server that issued it.");
-        }
-    }
-
-    private void ApplyServer(string baseUrl)
-    {
-        var wasLinked = configuration.IsLinked;
-
-        configuration.BaseUrl = baseUrl;
-
-        // The bearer token is issued by one instance and meaningless on another, so moving server
-        // has to drop it rather than leave a token that will only ever return 401.
-        configuration.Token = string.Empty;
-        configuration.Save();
-
-        syncService.ResetState();
-        serverDraft = baseUrl;
-
-        Plugin.Log.Information(
-            wasLinked
-                ? $"Server set to {baseUrl}; the previous link was dropped."
-                : $"Server set to {baseUrl}.");
     }
 }

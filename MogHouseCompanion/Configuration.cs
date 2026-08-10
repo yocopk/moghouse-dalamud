@@ -8,18 +8,19 @@ namespace MogHouseCompanion;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public const string DevBaseUrl = "https://dev.mog-house.com";
     public const string ProdBaseUrl = "https://mog-house.com";
 
     public int Version { get; set; } = 1;
 
     /// <summary>
-    /// MogHouse instance this plugin talks to.
+    /// MogHouse instance this plugin talks to. There is no in-game control for this: everyone who
+    /// installs the plugin wants the live site, and a server picker in the settings window is a
+    /// button whose only effect, for a real player, is to silently stop their notifications.
     ///
-    /// Only ever consulted for a fresh install: an existing config carries its own saved value
-    /// through deserialization, so changing this default cannot move anyone who is already linked
-    /// onto a different server — and it must not, since a token is only valid on the instance that
-    /// issued it. <see cref="DevBaseUrl"/> stays reachable from the Advanced section.
+    /// Still a stored field rather than a constant so a development build can be pointed elsewhere
+    /// by editing the saved config — see the README. Deserialization means an existing install keeps
+    /// whatever it was already set to, which it must: a bearer token is only valid on the instance
+    /// that issued it, so nothing here may move a linked plugin to another server behind its back.
     /// </summary>
     public string BaseUrl { get; set; } = ProdBaseUrl;
 
@@ -80,32 +81,6 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     [JsonIgnore]
     public string TimersUrl => $"{BaseUrl.TrimEnd('/')}/companion";
-
-    /// <summary>
-    /// Validates a server address typed by hand and strips a trailing slash, or returns null when
-    /// it is not usable. Paths are allowed: request paths are appended to this value, so an
-    /// instance hosted under a sub-path still works.
-    /// </summary>
-    public static string? NormalizeBaseUrl(string input)
-    {
-        var text = input.Trim().TrimEnd('/');
-        if (text.Length == 0)
-        {
-            return null;
-        }
-
-        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-        {
-            return null;
-        }
-
-        return text;
-    }
 
     public void Save()
     {

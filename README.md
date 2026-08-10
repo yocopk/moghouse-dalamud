@@ -120,9 +120,16 @@ To load it in-game without packaging, add the build output directory
 (`MogHouseCompanion/bin/x64/Debug`) under `Dalamud Settings → Experimental → Dev Plugin Locations`.
 Both configurations put the DLL and its manifest side by side, which is the layout Dalamud expects.
 
-Point the plugin at a local or staging server from **`/moghouse` → Advanced**. Switching server
-unlinks the device, because a bearer token only works on the instance that issued it. A fresh
-install defaults to production; an existing one keeps whatever it was already pointed at.
+The plugin talks to `https://mog-house.com` and has no in-game server picker: for a real player
+that control can only ever do harm, since pointing it anywhere else silently stops their
+notifications. To aim a development build somewhere else, close the game and edit `BaseUrl` in
+
+```
+%AppData%\XIVLauncher\pluginConfigs\MogHouseCompanion.json
+```
+
+Clear `Token` in the same file while you are there — a bearer token is only valid on the instance
+that issued it, so one carried across servers will do nothing but return 401.
 
 ## Releasing
 
