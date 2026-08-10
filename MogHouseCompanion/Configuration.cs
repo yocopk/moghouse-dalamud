@@ -65,11 +65,17 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>Where the pairing code is generated.</summary>
     [JsonIgnore]
-    public string SettingsUrl => $"{BaseUrl.TrimEnd('/')}/settings/ffxiv";
+    public string SettingsUrl => $"{BaseUrl.TrimEnd('/')}/settings/companion";
 
-    /// <summary>The timers page: what has been synced, and which of it sends a push.</summary>
+    /// <summary>
+    /// The Companion page: what has been synced, and which of it sends a push.
+    ///
+    /// Both paths were /ffxiv until the feature stopped being called FFXIV Sync. The server keeps
+    /// permanent redirects from the old ones, so a plugin build older than the rename still lands
+    /// in the right place.
+    /// </summary>
     [JsonIgnore]
-    public string TimersUrl => $"{BaseUrl.TrimEnd('/')}/ffxiv";
+    public string TimersUrl => $"{BaseUrl.TrimEnd('/')}/companion";
 
     /// <summary>
     /// Validates a server address typed by hand and strips a trailing slash, or returns null when
