@@ -15,9 +15,13 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>
     /// MogHouse instance this plugin talks to.
-    /// Defaults to the dev server for the closed beta; switch to <see cref="ProdBaseUrl"/> before the public release.
+    ///
+    /// Only ever consulted for a fresh install: an existing config carries its own saved value
+    /// through deserialization, so changing this default cannot move anyone who is already linked
+    /// onto a different server — and it must not, since a token is only valid on the instance that
+    /// issued it. <see cref="DevBaseUrl"/> stays reachable from the Advanced section.
     /// </summary>
-    public string BaseUrl { get; set; } = DevBaseUrl;
+    public string BaseUrl { get; set; } = ProdBaseUrl;
 
     /// <summary>
     /// Bearer token ("mgp_…") obtained by redeeming a pairing code. Empty when the plugin is not linked.

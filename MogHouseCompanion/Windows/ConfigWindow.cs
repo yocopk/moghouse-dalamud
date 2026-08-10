@@ -159,22 +159,49 @@ public sealed class ConfigWindow : Window, IDisposable
 
         using (ImRaii.Disabled(!push))
         {
-            var onlyAway = configuration.DutyPushOnlyWhenAway;
-
-            if (ImGui.Checkbox("Only when I am not looking at the game###MogHouseCompanionDutyAway", ref onlyAway))
-            {
-                configuration.DutyPushOnlyWhenAway = onlyAway;
-                configuration.Save();
-            }
+            // Two radios rather than one checkbox: this is a choice between two behaviours the
+            // player can reasonably want, and "only when away" phrased as a single tickbox reads
+            // like a caveat on the feature above rather than a setting of its own.
+            ImGui.TextColored(Theme.Muted, "When it pops while the game is the window in front of you:");
 
             using (ImRaii.PushIndent(26f))
             {
-                ImGui.TextColored(
-                    Theme.Muted,
-                    "Stays quiet while the game window is the one in front of you — it has already\n" +
-                    "made a noise at you, and your pocket does not need to as well.");
+                DrawAwayChoice();
             }
         }
+    }
+
+    private void DrawAwayChoice()
+    {
+        var onlyAway = configuration.DutyPushOnlyWhenAway;
+
+        if (ImGui.RadioButton("Stay quiet###MogHouseCompanionDutyAway", onlyAway) && !onlyAway)
+        {
+            SetOnlyWhenAway(true);
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(Theme.Muted, "The game has already made a noise at you.");
+        }
+
+        if (ImGui.RadioButton("Push anyway###MogHouseCompanionDutyAlways", !onlyAway) && onlyAway)
+        {
+            SetOnlyWhenAway(false);
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "For a game running muted, or focused on a screen you are not watching.");
+        }
+    }
+
+    private void SetOnlyWhenAway(bool onlyAway)
+    {
+        configuration.DutyPushOnlyWhenAway = onlyAway;
+        configuration.Save();
     }
 
     private void SetAll(bool enabled)

@@ -14,8 +14,8 @@ Nothing leaves the game unless you switch it on in the plugin. What is uploaded,
 sends you a push, are two separate choices — the first is made in-game, the second on the website.
 
 > **Status: beta, not published.**
-> Both modules work end to end against the development server. There is no release and no public
-> plugin repository entry yet — the source is public because Dalamud installs plugins from public
+> Both modules work end to end against production. There is no release and no public plugin
+> repository entry yet — the source is public because Dalamud installs plugins from public
 > download URLs, not because the plugin is ready to install.
 
 ## How it works
@@ -121,8 +121,8 @@ To load it in-game without packaging, add the build output directory
 Both configurations put the DLL and its manifest side by side, which is the layout Dalamud expects.
 
 Point the plugin at a local or staging server from **`/moghouse` → Advanced**. Switching server
-unlinks the device, because a bearer token only works on the instance that issued it. It defaults
-to the dev server during the beta.
+unlinks the device, because a bearer token only works on the instance that issued it. A fresh
+install defaults to production; an existing one keeps whatever it was already pointed at.
 
 ## Releasing
 
