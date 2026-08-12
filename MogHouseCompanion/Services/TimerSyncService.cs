@@ -304,9 +304,21 @@ public sealed class TimerSyncService : IDisposable
             Plugin.Log.Warning($"Timer snapshot hit the {TimerSnapshotBuilder.MaxTimers}-row cap; extra rows dropped.");
         }
 
+        // Merged rather than replaced, using the same rule the server applies to a snapshot: a key
+        // this poll is authoritative for is replaced, one it could not read is left alone.
+        //
+        // Without this the readout was empty of exactly the timers people care most about. Voyages
+        // are only readable inside the company workshop, so every poll taken anywhere else reported
+        // no submarines — and a window rendering the raw reading would show none, while the website
+        // happily showed them because the *server* had been preserving them all along.
+        //
+        // Safe because deadlines are absolute: a preserved row keeps counting down correctly, and
+        // the only thing that could invalidate it — sending the vessel out again — cannot happen
+        // without standing in the workshop, which refreshes the reading anyway.
+        reading = Merge(reading, builder.Timers, builder.DeclaredKeys, now);
+
         // Published before the early return below, so the readout and the chat announcements keep
         // working on a poll that produced nothing worth uploading.
-        reading = new TimerReading { At = now, Timers = builder.Timers.ToList() };
 
         // Nothing read and nothing to clear: an upload would only bump the sync timestamp.
         if (builder.Timers.Count == 0 && builder.DeclaredKeys.Count == 0)
@@ -335,6 +347,26 @@ public sealed class TimerSyncService : IDisposable
         var signature = $"{string.Join(',', enabled)}${builder.BuildSignature()}";
 
         return (snapshot, signature, available.ToArray(), unavailable.ToArray());
+    }
+
+    /// <summary>
+    /// Last known state per timer key: fresh rows for the keys just read, previously held rows for
+    /// the keys that could not be. Mirrors the ingest contract, so the plugin's own readout and the
+    /// website cannot disagree about what you have running.
+    /// </summary>
+    private static TimerReading Merge(
+        TimerReading previous,
+        IReadOnlyList<SnapshotTimer> fresh,
+        IReadOnlyCollection<string> declared,
+        DateTime now)
+    {
+        var kept = previous.Timers.Where(t => !declared.Contains(t.Key));
+
+        return new TimerReading
+        {
+            At = now,
+            Timers = fresh.Concat(kept).ToList(),
+        };
     }
 
     private async Task UploadAsync(SnapshotRequest snapshot, string signature, string[] available, string[] unavailable)

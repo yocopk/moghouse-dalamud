@@ -27,11 +27,13 @@ public sealed class ChatAnnouncer : IDisposable
     private readonly IChatGui chat;
 
     /// <summary>
-    /// Deadlines already spoken for, keyed by timer and entity. Seeded from the first reading so a
-    /// login does not replay every voyage that docked overnight — the push already covered those,
-    /// and a wall of text about yesterday is worse than silence.
+    /// Arrivals seen while they were still running, and therefore worth a word when they land.
+    ///
+    /// Announcing is gated on having watched something count down rather than on merely finding it
+    /// finished: a voyage is usually already back the first time it can be read — at login, or on
+    /// walking into the company workshop hours later — and the push reported that one long ago.
     /// </summary>
-    private readonly HashSet<string> announced = [];
+    private readonly HashSet<string> pending = [];
 
     /// <summary>
     /// How often the checks actually run. They are cheap, but this sits in the game's frame loop and
@@ -40,7 +42,6 @@ public sealed class ChatAnnouncer : IDisposable
     private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(1);
 
     private DateTime lastCheckAt = DateTime.MinValue;
-    private bool seeded;
     private DateTime? lastAnnouncedSync;
 
     public ChatAnnouncer(
@@ -120,10 +121,9 @@ public sealed class ChatAnnouncer : IDisposable
 
         if (reading.At == null)
         {
-            // Unlinked, or pointed at another server. Whatever was said belonged to the old link,
-            // and the next reading should start a fresh session rather than a continued one.
-            announced.Clear();
-            seeded = false;
+            // Unlinked, or pointed at another server. Nothing being watched belongs to this link
+            // any more.
+            pending.Clear();
             return;
         }
 
@@ -131,21 +131,29 @@ public sealed class ChatAnnouncer : IDisposable
 
         foreach (var timer in reading.Timers)
         {
-            if (timer.DueAt == null || timer.DueAt > now)
+            if (timer.DueAt == null)
             {
                 continue;
             }
 
-            // The deadline is part of the identity, so a vessel sent out again earns a new line when
-            // it docks, while the same completed voyage read twenty times stays quiet.
-            if (!announced.Add(Identify(timer)))
+            // The deadline is part of the identity, so a vessel sent out again is watched afresh,
+            // while the same completed voyage read twenty times is only ever spoken once.
+            var id = Identify(timer);
+
+            if (timer.DueAt > now)
+            {
+                pending.Add(id);
+                continue;
+            }
+
+            if (!pending.Remove(id))
             {
                 continue;
             }
 
-            // Everything already finished at the first reading is *recorded* as said without being
-            // said: the push covered it, and a login should not replay the night.
-            if (!seeded || !configuration.AnnounceFinishedTimersInChat)
+            // Dropped from the watch list either way, so switching the setting on later starts from
+            // the next arrival rather than replaying the ones that landed while it was off.
+            if (!configuration.AnnounceFinishedTimersInChat)
             {
                 continue;
             }
@@ -154,8 +162,6 @@ public sealed class ChatAnnouncer : IDisposable
                 .AddText(TimerLabels.Finished(timer.Key, timer.SubKey))
                 .Build());
         }
-
-        seeded = true;
     }
 
     /// <summary>One arrival, across readings.</summary>
