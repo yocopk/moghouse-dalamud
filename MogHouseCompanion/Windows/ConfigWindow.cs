@@ -115,6 +115,61 @@ public sealed class ConfigWindow : Window, IDisposable
         }
 
         ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var showNotifications = configuration.ShowMogHouseNotifications;
+
+        if (ImGui.Checkbox("Show MogHouse notifications###MogHouseCompanionNotifications", ref showNotifications))
+        {
+            configuration.ShowMogHouseNotifications = showNotifications;
+            configuration.Save();
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "Messages, matches and announcements, as a toast in the corner. Only while the game\n" +
+                "is the window in front of you — when it is not, your phone already has them.");
+        }
+
+        using (ImRaii.Disabled(!showNotifications))
+        using (ImRaii.PushIndent(26f))
+        {
+            var showContent = configuration.ShowNotificationContent;
+
+            if (ImGui.Checkbox("Include the message text###MogHouseCompanionNotificationBody", ref showContent))
+            {
+                configuration.ShowNotificationContent = showContent;
+                configuration.Save();
+            }
+
+            using (ImRaii.PushIndent(26f))
+            {
+                ImGui.TextColored(
+                    Theme.Muted,
+                    "Off by default: this draws over the game, and a private message is not something\n" +
+                    "to put on screen without asking. Who it is from is shown either way.");
+            }
+
+            var inChat = configuration.AnnounceNotificationsInChat;
+
+            if (ImGui.Checkbox("Also put them in chat###MogHouseCompanionNotificationChat", ref inChat))
+            {
+                configuration.AnnounceNotificationsInChat = inChat;
+                configuration.Save();
+            }
+
+            using (ImRaii.PushIndent(26f))
+            {
+                ImGui.TextColored(Theme.Muted, "Where they stay in the log instead of fading.");
+            }
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
 
         var announceSync = configuration.AnnounceSyncInChat;
 

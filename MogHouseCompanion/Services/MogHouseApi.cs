@@ -89,12 +89,62 @@ public sealed class MogHouseApi : IDisposable
             timeout: EventTimeout);
     }
 
-    private async Task<ApiResponse<TOut>> PostAsync<TIn, TOut>(
+    /// <summary>
+    /// Notifications raised on MogHouse since <paramref name="after"/>, oldest first.
+    ///
+    /// Read-only by design on both ends: the server does not mark anything read and neither does
+    /// this. Seeing a toast in the corner of a game is not the same as having read a message, and
+    /// clearing the badge on someone's phone from here would be a lie about what they have seen.
+    /// </summary>
+    public Task<ApiResponse<NotificationFeed>> GetNotificationsAsync(DateTime after, CancellationToken ct = default)
+    {
+        var cursor = Uri.EscapeDataString(after.ToUniversalTime().ToString("O"));
+        return GetAsync<NotificationFeed>($"/api/plugin/v1/notifications?after={cursor}", ct);
+    }
+
+    private Task<ApiResponse<TOut>> PostAsync<TIn, TOut>(
         string path,
         TIn body,
         bool authenticated,
         CancellationToken ct,
         TimeSpan? timeout = null)
+    {
+        return SendAsync<TOut>(
+            () => new HttpRequestMessage(HttpMethod.Post, BuildUri(path))
+            {
+                Content = new StringContent(
+                    JsonSerializer.Serialize(body, JsonOptions),
+                    Encoding.UTF8,
+                    "application/json"),
+            },
+            path,
+            authenticated,
+            ct,
+            timeout);
+    }
+
+    /// <summary>Authenticated GET. Query strings belong in <paramref name="path"/>, already escaped.</summary>
+    private Task<ApiResponse<TOut>> GetAsync<TOut>(string path, CancellationToken ct, TimeSpan? timeout = null)
+    {
+        return SendAsync<TOut>(
+            () => new HttpRequestMessage(HttpMethod.Get, BuildUri(path)),
+            path,
+            authenticated: true,
+            ct,
+            timeout);
+    }
+
+    /// <summary>
+    /// The one place a request is actually sent. Both verbs share the per-call deadline, the
+    /// envelope parsing and the failure shaping, so a new endpoint cannot accidentally acquire
+    /// different timeout or error behaviour by being written slightly differently.
+    /// </summary>
+    private async Task<ApiResponse<TOut>> SendAsync<TOut>(
+        Func<HttpRequestMessage> build,
+        string path,
+        bool authenticated,
+        CancellationToken ct,
+        TimeSpan? timeout)
     {
         // A per-call deadline on top of the client's, linked to the caller's token so cancelling
         // either one cancels the request.
@@ -107,12 +157,7 @@ public sealed class MogHouseApi : IDisposable
 
         try
         {
-            var json = JsonSerializer.Serialize(body, JsonOptions);
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri(path))
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json"),
-            };
+            using var request = build();
 
             if (authenticated)
             {

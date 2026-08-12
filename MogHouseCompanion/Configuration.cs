@@ -94,6 +94,27 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool ShowTimersWindow { get; set; } = true;
 
+    /// <summary>Show MogHouse notifications — messages, matches, announcements — inside the game.</summary>
+    public bool ShowMogHouseNotifications { get; set; } = true;
+
+    /// <summary>
+    /// Whether the notification's body is shown, or only who it is from.
+    ///
+    /// Off by default. This paints over the game, plenty of people play with a stream running, and a
+    /// private message spelling itself out on screen is not something to opt *out* of.
+    /// </summary>
+    public bool ShowNotificationContent { get; set; }
+
+    /// <summary>Also echo each notification into the game chat, where it stays in the log.</summary>
+    public bool AnnounceNotificationsInChat { get; set; }
+
+    /// <summary>
+    /// Cursor for the notification feed, issued by the server rather than measured locally so a
+    /// client clock running fast cannot skip past notifications it never showed. Null means "start
+    /// from the next poll", which is what a fresh install should do.
+    /// </summary>
+    public DateTime? LastNotificationAt { get; set; }
+
     /// <summary>Print a line in the game chat when a snapshot reaches MogHouse.</summary>
     public bool AnnounceSyncInChat { get; set; } = true;
 

@@ -18,6 +18,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private const string CommandName = "/moghouse";
@@ -30,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     private ActivityWatcher ActivityWatcher { get; }
     private DutyWatcher DutyWatcher { get; }
     private ChatAnnouncer ChatAnnouncer { get; }
+    private NotificationPoller NotificationPoller { get; }
     private PairingWindow PairingWindow { get; }
     private ConfigWindow ConfigWindow { get; }
     private TimersWindow TimersWindow { get; }
@@ -43,6 +45,7 @@ public sealed class Plugin : IDalamudPlugin
         ActivityWatcher = new ActivityWatcher(AddonLifecycle, SyncService);
         DutyWatcher = new DutyWatcher(Configuration, Api, AddonLifecycle);
         ChatAnnouncer = new ChatAnnouncer(Configuration, SyncService, Framework, ChatGui);
+        NotificationPoller = new NotificationPoller(Configuration, Api, Framework, NotificationManager, ChatGui);
 
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
         TimersWindow = new TimersWindow(Configuration, SyncService);
@@ -81,6 +84,7 @@ public sealed class Plugin : IDalamudPlugin
         TimersWindow.Dispose();
         ConfigWindow.Dispose();
         PairingWindow.Dispose();
+        NotificationPoller.Dispose();
         ChatAnnouncer.Dispose();
         DutyWatcher.Dispose();
         ActivityWatcher.Dispose();

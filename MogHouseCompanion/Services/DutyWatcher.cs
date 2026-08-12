@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
@@ -76,7 +75,7 @@ public sealed class DutyWatcher : IDisposable
 
         // You are looking straight at the popup. The game already made a noise; a second one on the
         // phone in your pocket is not news.
-        if (configuration.DutyPushOnlyWhenAway && IsGameInForeground())
+        if (configuration.DutyPushOnlyWhenAway && GameWindow.IsInForeground())
         {
             return;
         }
@@ -161,20 +160,6 @@ public sealed class DutyWatcher : IDisposable
             ? char.ToUpperInvariant(trimmed[0]) + trimmed[1..]
             : trimmed;
     }
-
-    /// <summary>
-    /// Whether the game is the window the player is actually using. Dalamud exposes the game's
-    /// handle, so this is a comparison rather than a guess — alt-tabbed, minimised, locked screen
-    /// and second monitor all read the same way, which is exactly the case the push exists for.
-    /// </summary>
-    private static bool IsGameInForeground()
-    {
-        var game = Plugin.PluginInterface.UiBuilder.WindowHandlePtr;
-        return game != IntPtr.Zero && GetForegroundWindow() == game;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
 
     public void Dispose()
     {
