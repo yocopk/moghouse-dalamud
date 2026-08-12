@@ -17,6 +17,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private const string CommandName = "/moghouse";
@@ -28,8 +29,10 @@ public sealed class Plugin : IDalamudPlugin
     private TimerSyncService SyncService { get; }
     private ActivityWatcher ActivityWatcher { get; }
     private DutyWatcher DutyWatcher { get; }
+    private ChatAnnouncer ChatAnnouncer { get; }
     private PairingWindow PairingWindow { get; }
     private ConfigWindow ConfigWindow { get; }
+    private TimersWindow TimersWindow { get; }
     private StatusWindow StatusWindow { get; }
 
     public Plugin()
@@ -39,13 +42,20 @@ public sealed class Plugin : IDalamudPlugin
         SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
         ActivityWatcher = new ActivityWatcher(AddonLifecycle, SyncService);
         DutyWatcher = new DutyWatcher(Configuration, Api, AddonLifecycle);
+        ChatAnnouncer = new ChatAnnouncer(Configuration, SyncService, Framework, ChatGui);
 
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
-        ConfigWindow = new ConfigWindow(Configuration, SyncService);
-        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow, ConfigWindow);
+        TimersWindow = new TimersWindow(Configuration, SyncService);
+        ConfigWindow = new ConfigWindow(Configuration, SyncService, TimersWindow);
+        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow, ConfigWindow, TimersWindow);
+
+        // Left open last session means open now: a readout you have to re-summon every login is a
+        // readout you stop using.
+        TimersWindow.SyncOpenState();
 
         windowSystem.AddWindow(PairingWindow);
         windowSystem.AddWindow(ConfigWindow);
+        windowSystem.AddWindow(TimersWindow);
         windowSystem.AddWindow(StatusWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -68,8 +78,10 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
 
         StatusWindow.Dispose();
+        TimersWindow.Dispose();
         ConfigWindow.Dispose();
         PairingWindow.Dispose();
+        ChatAnnouncer.Dispose();
         DutyWatcher.Dispose();
         ActivityWatcher.Dispose();
         SyncService.Dispose();
@@ -83,9 +95,19 @@ public sealed class Plugin : IDalamudPlugin
         ToggleStatusUi();
     }
 
+    /// <summary>
+    /// Opening the plugin brings the timers readout with it, which is what most people came for.
+    /// Only on the way *open*: closing the main window should not take away a readout that is
+    /// deliberately meant to be left sitting next to the game.
+    /// </summary>
     private void ToggleStatusUi()
     {
         StatusWindow.Toggle();
+
+        if (StatusWindow.IsOpen && Configuration.ShowTimersWindow)
+        {
+            TimersWindow.IsOpen = true;
+        }
     }
 
     private void ToggleConfigUi()

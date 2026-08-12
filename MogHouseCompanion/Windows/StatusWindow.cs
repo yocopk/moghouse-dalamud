@@ -26,18 +26,21 @@ public sealed class StatusWindow : Window, IDisposable
     private readonly TimerSyncService syncService;
     private readonly PairingWindow pairingWindow;
     private readonly ConfigWindow configWindow;
+    private readonly TimersWindow timersWindow;
 
     public StatusWindow(
         Configuration configuration,
         TimerSyncService syncService,
         PairingWindow pairingWindow,
-        ConfigWindow configWindow)
+        ConfigWindow configWindow,
+        TimersWindow timersWindow)
         : base("MogHouse Companion###MogHouseCompanionStatus")
     {
         this.configuration = configuration;
         this.syncService = syncService;
         this.pairingWindow = pairingWindow;
         this.configWindow = configWindow;
+        this.timersWindow = timersWindow;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -230,6 +233,13 @@ public sealed class StatusWindow : Window, IDisposable
 
         ImGui.SameLine();
 
+        if (ImGui.Button(timersWindow.IsOpen ? "Hide timers" : "Show timers"))
+        {
+            ToggleTimers();
+        }
+
+        ImGui.SameLine();
+
         if (ImGui.Button("Settings"))
         {
             configWindow.IsOpen = true;
@@ -240,6 +250,21 @@ public sealed class StatusWindow : Window, IDisposable
         if (ImGui.Button("Unlink"))
         {
             Unlink();
+        }
+    }
+
+    /// <summary>
+    /// Toggling from here is a preference too, not just this session: the readout is meant to be
+    /// left open, so it has to survive a logout the same way closing it does.
+    /// </summary>
+    private void ToggleTimers()
+    {
+        timersWindow.IsOpen = !timersWindow.IsOpen;
+
+        if (configuration.ShowTimersWindow != timersWindow.IsOpen)
+        {
+            configuration.ShowTimersWindow = timersWindow.IsOpen;
+            configuration.Save();
         }
     }
 

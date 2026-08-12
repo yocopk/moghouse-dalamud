@@ -65,6 +65,27 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool DutyPushOnlyWhenAway { get; set; } = true;
 
+    /// <summary>
+    /// Whether the timers readout opens alongside the main window.
+    ///
+    /// On by default: the plugin reads these timers anyway, and having to open the website to see
+    /// numbers the game just handed over is the kind of thing that makes a tool feel like a chore.
+    /// It can also be opened on its own and left open, in which case it comes back on the next login.
+    /// </summary>
+    public bool ShowTimersWindow { get; set; } = true;
+
+    /// <summary>Print a line in the game chat when a snapshot reaches MogHouse.</summary>
+    public bool AnnounceSyncInChat { get; set; } = true;
+
+    /// <summary>
+    /// Print a line when a voyage or venture comes back while you are playing.
+    ///
+    /// Deliberately only for deadlines that pass *while you are watching*: anything already finished
+    /// when the plugin starts reading is seeded as announced, because the push notification covered
+    /// that case and logging in should not dump a wall of text about things you were told hours ago.
+    /// </summary>
+    public bool AnnounceFinishedTimersInChat { get; set; } = true;
+
     [JsonIgnore]
     public bool IsLinked => !string.IsNullOrEmpty(Token);
 

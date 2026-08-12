@@ -9,6 +9,23 @@ using MogHouseCompanion.Dto;
 
 namespace MogHouseCompanion.Services;
 
+/// <summary>
+/// The last thing the collectors saw, whether or not it was worth uploading.
+///
+/// Separate from <see cref="SyncStatus"/>, which is about the health of the connection: this is the
+/// data itself, kept so the plugin can show the player their own timers without a round trip to the
+/// website. Deadlines are absolute, so a reading stays correct as it ages — only a change made in
+/// game since the last poll is missing from it.
+/// </summary>
+public sealed record TimerReading
+{
+    public static readonly TimerReading Empty = new();
+
+    public DateTime? At { get; init; }
+
+    public IReadOnlyList<SnapshotTimer> Timers { get; init; } = [];
+}
+
 /// <summary>Immutable view of the sync state, swapped atomically so the UI never reads a torn value.</summary>
 public sealed record SyncStatus
 {
@@ -95,6 +112,10 @@ public sealed class TimerSyncService : IDisposable
     // cache a stale reference.
     private volatile SyncStatus status = SyncStatus.Idle;
 
+    // Written on the framework thread by Collect, read by the windows on the same thread; volatile
+    // for the same reason as above, since the reference is swapped rather than mutated.
+    private volatile TimerReading reading = TimerReading.Empty;
+
     public TimerSyncService(
         Configuration configuration,
         MogHouseApi api,
@@ -118,6 +139,8 @@ public sealed class TimerSyncService : IDisposable
     }
 
     public SyncStatus Status => status;
+
+    public TimerReading LastReading => reading;
 
     /// <summary>Asks for an upload on the next poll, bypassing the change check.</summary>
     public void RequestSync()
@@ -168,6 +191,7 @@ public sealed class TimerSyncService : IDisposable
         consecutiveFailures = 0;
         forceRequested = false;
         status = SyncStatus.Idle;
+        reading = TimerReading.Empty;
     }
 
     private void OnLogin()
@@ -279,6 +303,10 @@ public sealed class TimerSyncService : IDisposable
         {
             Plugin.Log.Warning($"Timer snapshot hit the {TimerSnapshotBuilder.MaxTimers}-row cap; extra rows dropped.");
         }
+
+        // Published before the early return below, so the readout and the chat announcements keep
+        // working on a poll that produced nothing worth uploading.
+        reading = new TimerReading { At = now, Timers = builder.Timers.ToList() };
 
         // Nothing read and nothing to clear: an upload would only bump the sync timestamp.
         if (builder.Timers.Count == 0 && builder.DeclaredKeys.Count == 0)

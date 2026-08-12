@@ -39,12 +39,14 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private readonly Configuration configuration;
     private readonly TimerSyncService syncService;
+    private readonly TimersWindow timersWindow;
 
-    public ConfigWindow(Configuration configuration, TimerSyncService syncService)
+    public ConfigWindow(Configuration configuration, TimerSyncService syncService, TimersWindow timersWindow)
         : base("MogHouse Companion — Settings###MogHouseCompanionConfig")
     {
         this.configuration = configuration;
         this.syncService = syncService;
+        this.timersWindow = timersWindow;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -66,6 +68,65 @@ public sealed class ConfigWindow : Window, IDisposable
 
         Theme.Heading(FontAwesomeIcon.Dungeon, "Duty Finder");
         Theme.Card("##duty", DrawDuty);
+
+        Theme.Heading(FontAwesomeIcon.Comments, "In game");
+        Theme.Card("##ingame", DrawInGame);
+    }
+
+    /// <summary>
+    /// What the plugin says to you at the keyboard, as opposed to what it sends to your phone.
+    /// Nothing here leaves the machine, which is why it sits apart from the two sections above.
+    /// </summary>
+    private void DrawInGame()
+    {
+        var showTimers = configuration.ShowTimersWindow;
+
+        if (ImGui.Checkbox("Show the timers window###MogHouseCompanionShowTimers", ref showTimers))
+        {
+            configuration.ShowTimersWindow = showTimers;
+            configuration.Save();
+            timersWindow.IsOpen = showTimers;
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "A small readout of your own timers, opened alongside the main window.");
+        }
+
+        ImGui.Spacing();
+
+        var announceSync = configuration.AnnounceSyncInChat;
+
+        if (ImGui.Checkbox("Say when a sync goes through###MogHouseCompanionAnnounceSync", ref announceSync))
+        {
+            configuration.AnnounceSyncInChat = announceSync;
+            configuration.Save();
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(Theme.Muted, "One line in chat each time a snapshot reaches MogHouse.");
+        }
+
+        ImGui.Spacing();
+
+        var announceDone = configuration.AnnounceFinishedTimersInChat;
+
+        if (ImGui.Checkbox("Say when a timer finishes###MogHouseCompanionAnnounceDone", ref announceDone))
+        {
+            configuration.AnnounceFinishedTimersInChat = announceDone;
+            configuration.Save();
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "Only while you are playing. Anything that finished before you logged in stays\n" +
+                "quiet — the push already told you, and a login should not replay the night.");
+        }
     }
 
     private void DrawTimers()
