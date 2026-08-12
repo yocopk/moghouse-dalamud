@@ -53,6 +53,26 @@ public class Configuration : IPluginConfiguration
         TimerUploads[key] = enabled;
     }
 
+    /// <summary>
+    /// Which duty roulettes appear in the daily checklist, keyed by the sheet's row id.
+    ///
+    /// Row id rather than name because names are localised, and rather than the completion index
+    /// because that is a position in a game array and positions move. Missing entries fall back to
+    /// <c>!isExtra</c>, so the everyday roulettes are on out of the box while PvP and the Gold
+    /// Saucer stay out of the way until someone asks for them.
+    /// </summary>
+    public Dictionary<string, bool> Roulettes { get; set; } = new();
+
+    public bool IsRouletteTracked(uint rowId, bool isExtra)
+    {
+        return Roulettes.TryGetValue(rowId.ToString(), out var tracked) ? tracked : !isExtra;
+    }
+
+    public void SetRouletteTracked(uint rowId, bool tracked)
+    {
+        Roulettes[rowId.ToString()] = tracked;
+    }
+
     /// <summary>Whether a Duty Finder pop is reported to MogHouse so it can push to your phone.</summary>
     public bool DutyFinderPush { get; set; } = true;
 

@@ -93,6 +93,44 @@ public sealed class TimersWindow : Window, IDisposable
 
             DrawGroup(key, rows, now);
         }
+
+        DrawRoulettes();
+    }
+
+    /// <summary>
+    /// What is left of today's roulettes. Read straight from the game each frame rather than from
+    /// the sync reading: it costs a sheet scan and a byte lookup each, and it means the tick appears
+    /// the moment you walk out of the duty rather than at the next poll.
+    /// </summary>
+    private void DrawRoulettes()
+    {
+        var tracked = RouletteReader.Read()
+            .Where(r => configuration.IsRouletteTracked(r.RowId, r.IsExtra))
+            .ToList();
+
+        if (tracked.Count == 0)
+        {
+            return;
+        }
+
+        var left = tracked.Count(r => !r.Complete);
+
+        ImGui.Spacing();
+        ImGui.TextColored(Theme.GoldSoft, "Daily roulettes");
+
+        using (ImRaii.PushIndent(12f))
+        {
+            // The count first: on a day when everything is done this is the only line worth reading.
+            DrawRow(
+                "Remaining",
+                left == 0 ? "all done" : $"{left} of {tracked.Count}",
+                left == 0 ? Theme.Good : Theme.Gold);
+
+            foreach (var roulette in tracked.Where(r => !r.Complete))
+            {
+                DrawRow(roulette.Name, "available", Theme.Muted);
+            }
+        }
     }
 
     private void DrawGroup(string key, List<SnapshotTimer> rows, DateTime now)
@@ -118,17 +156,21 @@ public sealed class TimersWindow : Window, IDisposable
         }
     }
 
-    /// <summary>Label on the left, value right-aligned so the column of numbers scans vertically.</summary>
     private static void DrawRow(string label, SnapshotTimer timer, DateTime now)
     {
         var (text, color) = Describe(timer, now);
+        DrawRow(label, text, color);
+    }
 
+    /// <summary>Label on the left, value right-aligned so the column of values scans vertically.</summary>
+    private static void DrawRow(string label, string value, Vector4 color)
+    {
         ImGui.TextUnformatted(label);
 
-        var width = ImGui.CalcTextSize(text).X;
+        var width = ImGui.CalcTextSize(value).X;
         ImGui.SameLine();
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - width);
-        ImGui.TextColored(color, text);
+        ImGui.TextColored(color, value);
     }
 
     private static (string Text, Vector4 Color) Describe(SnapshotTimer timer, DateTime now)

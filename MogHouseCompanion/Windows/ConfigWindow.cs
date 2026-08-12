@@ -63,14 +63,33 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.SameLine(0, 8 * ImGuiHelpers.GlobalScale);
         ImGui.TextWrapped("Nothing leaves the game unless it is switched on here.");
 
-        Theme.Heading(FontAwesomeIcon.Hourglass, "Timers");
-        Theme.Card("##timers", DrawTimers);
+        ImGui.Spacing();
 
-        Theme.Heading(FontAwesomeIcon.Dungeon, "Duty Finder");
-        Theme.Card("##duty", DrawDuty);
+        // Tabs rather than stacked sections: with four of them the window had grown past a screenful,
+        // and scrolling to find a checkbox is how a setting stops being found at all.
+        using var tabs = ImRaii.TabBar("##MogHouseCompanionTabs");
+        if (!tabs)
+        {
+            return;
+        }
 
-        Theme.Heading(FontAwesomeIcon.Comments, "In game");
-        Theme.Card("##ingame", DrawInGame);
+        DrawTab("Timers", FontAwesomeIcon.Hourglass, "##timers", DrawTimers);
+        DrawTab("Roulettes", FontAwesomeIcon.ClipboardCheck, "##roulettes", DrawRoulettes);
+        DrawTab("Duty Finder", FontAwesomeIcon.Dungeon, "##duty", DrawDuty);
+        DrawTab("In game", FontAwesomeIcon.Comments, "##ingame", DrawInGame);
+    }
+
+    private static void DrawTab(string label, FontAwesomeIcon icon, string id, Action body)
+    {
+        using var tab = ImRaii.TabItem(label);
+        if (!tab)
+        {
+            return;
+        }
+
+        ImGui.Spacing();
+        Theme.Heading(icon, label);
+        Theme.Card(id, body);
     }
 
     /// <summary>
@@ -165,6 +184,67 @@ public sealed class ConfigWindow : Window, IDisposable
         if (Theme.PrimaryButton("Choose which ones notify me"))
         {
             Util.OpenLink(configuration.TimersUrl);
+        }
+    }
+
+    /// <summary>
+    /// The daily roulette checklist. Read live from the game rather than from a hardcoded list, so a
+    /// roulette added in a patch turns up on its own instead of waiting for a plugin release.
+    /// </summary>
+    private void DrawRoulettes()
+    {
+        var roulettes = RouletteReader.Read();
+
+        if (roulettes.Count == 0)
+        {
+            ImGui.TextColored(Theme.Muted, "Log in to read the roulette list.");
+            return;
+        }
+
+        Theme.Hint("Ticked roulettes appear in the checklist and count towards what is left today.");
+
+        ImGui.Spacing();
+
+        if (ImGui.Button("Everyday ones"))
+        {
+            foreach (var roulette in roulettes)
+            {
+                configuration.SetRouletteTracked(roulette.RowId, !roulette.IsExtra);
+            }
+
+            configuration.Save();
+        }
+
+        ImGui.SameLine();
+
+        if (ImGui.Button("None"))
+        {
+            foreach (var roulette in roulettes)
+            {
+                configuration.SetRouletteTracked(roulette.RowId, false);
+            }
+
+            configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        foreach (var roulette in roulettes)
+        {
+            var tracked = configuration.IsRouletteTracked(roulette.RowId, roulette.IsExtra);
+
+            if (ImGui.Checkbox($"{roulette.Name}###MogHouseCompanionRoulette{roulette.RowId}", ref tracked))
+            {
+                configuration.SetRouletteTracked(roulette.RowId, tracked);
+                configuration.Save();
+            }
+
+            // Today's state, right there while you are choosing — it is the fastest way to tell
+            // which of two similarly named roulettes is the one you actually run.
+            ImGui.SameLine();
+            ImGui.TextColored(
+                roulette.Complete ? Theme.Muted : Theme.Good,
+                roulette.Complete ? "done" : "available");
         }
     }
 
