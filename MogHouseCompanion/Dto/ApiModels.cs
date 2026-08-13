@@ -32,6 +32,14 @@ public static class ApiErrorCode
     public const string Validation = "VALIDATION";
     public const string Blocked = "BLOCKED";
     public const string RateLimited = "RATE_LIMITED";
+
+    /// <summary>
+    /// The account may use the plugin, but this particular thing is over its free ceiling — a
+    /// second character, for instance. Distinct from <see cref="PremiumRequired"/>, which means the
+    /// endpoint is closed to the account entirely.
+    /// </summary>
+    public const string PlanLimit = "PLAN_LIMIT";
+
     public const string PremiumRequired = "PREMIUM_REQUIRED";
     public const string Internal = "INTERNAL";
 

@@ -434,6 +434,22 @@ public sealed class TimerSyncService : IDisposable
                 retryAfter = DateTime.UtcNow + SyncInterval;
                 Publish(false, timerCount, available, unavailable, "FFXIV Sync needs an active Mog+ subscription.", premiumRequired: true);
                 return;
+
+            case ApiErrorCode.PlanLimit:
+                // A ceiling, not a fault. Falling through to the backoff below would treat a settled
+                // answer as a flaky server and climb to hour-long gaps — so this character would
+                // still be silent long after the player subscribed. Ordinary cadence instead, and
+                // the server's own wording, which names the character being followed.
+                retryAfter = DateTime.UtcNow + SyncInterval;
+                Publish(
+                    false,
+                    timerCount,
+                    available,
+                    unavailable,
+                    error?.Message is { Length: > 0 } limit
+                        ? limit
+                        : "Your plan does not cover this character.");
+                return;
         }
 
         consecutiveFailures = Math.Min(consecutiveFailures + 1, MaxRetryExponent);

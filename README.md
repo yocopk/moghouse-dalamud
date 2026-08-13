@@ -13,10 +13,10 @@ phone while the window is still open.
 Nothing leaves the game unless you switch it on in the plugin. What is uploaded, and what then
 sends you a push, are two separate choices — the first is made in-game, the second on the website.
 
-> **Status: beta, not published.**
-> Both modules work end to end against production. There is no release and no public plugin
-> repository entry yet — the source is public because Dalamud installs plugins from public
-> download URLs, not because the plugin is ready to install.
+> **Status: beta, installable.**
+> Both modules work end to end against production, and the plugin installs from the custom
+> repository below. It is **not** in the official Dalamud plugin list, so it arrives through
+> `Experimental` and updates from here rather than from the installer's own catalogue.
 
 ## How it works
 
@@ -35,8 +35,8 @@ FFXIV + Dalamud
 The two halves answer different questions, and both are deliberate. **Which timers leave the game
 at all** is decided in the plugin, in-game — that is the privacy boundary, and it should not depend
 on a website honouring a request. **Which of the ones that arrive send you a push** is decided on
-[mog-house.com/ffxiv](https://mog-house.com/ffxiv), per character, so the website and the mobile app
-can never disagree about what should fire.
+[mog-house.com/companion](https://mog-house.com/companion), per character, so the website and the
+mobile app can never disagree about what should fire.
 
 A timer switched off in the plugin is cleared from your account on the next sync, and the site stops
 offering a notification switch for it.
@@ -82,12 +82,34 @@ is reported the moment the confirm window appears and delivered on that request,
 
 - Windows, [XIVLauncher](https://goatcorp.github.io/) with Dalamud enabled (console players cannot
   use this)
-- A MogHouse account with an active **Mog+** subscription
+- A [MogHouse](https://mog-house.com) account — a free one is enough; see [Plans](#plans)
+
+## Plans
+
+The plugin itself is free, and everything it reads is yours to see either way. What a free account
+is capped on is how much MogHouse will *watch for you* while the game is closed.
+
+| | Free | Mog+ |
+|---|---|---|
+| Characters synced | 1 | every one |
+| Timers shown, in game and on the site | all | all |
+| Daily roulette checklist | ✓ | ✓ |
+| MogHouse notifications shown in game | ✓ | ✓ |
+| Duty Finder push | ✓ | ✓ |
+| Timer push alerts | 1, chosen by you | as many as you like |
+| Warning *before* a timer lands | — | ✓ |
+
+Every one of those is enforced on the server. Nothing in this repository decides what your account
+is allowed to do, which is the only arrangement that makes sense for a plugin whose source anyone
+can read and rebuild.
+
+A free account syncing a second character is told so rather than quietly ignored, and a lapsed
+subscription pauses the extras instead of deleting them — it all comes back on renewal without
+re-pairing or reconfiguring anything.
 
 ## Installing
 
-Not available yet — there is no release, so the URL below still 404s. Once the first version is
-tagged, add it under `Dalamud Settings → Experimental → Custom Plugin Repositories`:
+Add this under `Dalamud Settings → Experimental → Custom Plugin Repositories`:
 
 ```
 https://raw.githubusercontent.com/yocopk/moghouse-dalamud/main/repo.json
@@ -140,8 +162,8 @@ a GitHub release, and regenerates `repo.json` (the Dalamud plugin manifest list)
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-`repo.json` is served straight off `main`, so the repository URL above starts working with that
-first tag and needs nothing hosted on mog-house.com.
+`repo.json` is served straight off `main`, so the repository URL above needs nothing hosted on
+mog-house.com — the tag is the whole publish step.
 
 The installer icon is [`images/icon.png`](images/icon.png) — the MogHouse app icon, 512×512, which
 is also the size and location the official Dalamud repository expects if this is ever submitted
