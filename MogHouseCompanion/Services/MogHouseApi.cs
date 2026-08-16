@@ -103,6 +103,17 @@ public sealed class MogHouseApi : IDisposable
     }
 
     /// <summary>
+    /// What MogHouse already holds for this character, so a fresh launch can show the submarines it
+    /// has no way of reading until you walk to the workshop.
+    /// </summary>
+    public Task<ApiResponse<StoredTimers>> GetStoredTimersAsync(string contentId, CancellationToken ct = default)
+    {
+        return GetAsync<StoredTimers>(
+            $"/api/plugin/v1/timers?contentId={Uri.EscapeDataString(contentId)}",
+            ct);
+    }
+
+    /// <summary>
     /// The account's plan and how much of its ceilings are spent, so the window can state a limit
     /// rather than let the player find it by being refused.
     /// </summary>

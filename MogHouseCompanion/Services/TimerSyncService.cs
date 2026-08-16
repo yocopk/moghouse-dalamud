@@ -116,6 +116,9 @@ public sealed class TimerSyncService : IDisposable
     // for the same reason as above, since the reference is swapped rather than mutated.
     private volatile TimerReading reading = TimerReading.Empty;
 
+    /// <summary>Whether the readout has already been seeded from the server for this login.</summary>
+    private bool seedRequested;
+
     public TimerSyncService(
         Configuration configuration,
         MogHouseApi api,
@@ -193,11 +196,83 @@ public sealed class TimerSyncService : IDisposable
         forceRequested = false;
         status = SyncStatus.Idle;
         reading = TimerReading.Empty;
+        seedRequested = false;
     }
 
     private void OnLogin()
     {
+        // A different character has a different set of stored timers, so the seed is owed again.
+        seedRequested = false;
         RequestSync();
+    }
+
+    /// <summary>
+    /// Fills the readout with what MogHouse already holds for this character.
+    ///
+    /// The game only lets some subsystems be read in some places — voyages inside the company
+    /// workshop, ventures at the retainer bell — so on a fresh launch the plugin genuinely knows
+    /// nothing about your submarines, and the readout said as much while the website showed them
+    /// perfectly well. The server has been preserving them all along; this asks for them back.
+    ///
+    /// Runs once per login, and never overwrites: a row the plugin read itself is fresher by
+    /// definition, so stored rows only fill keys that have nothing.
+    /// </summary>
+    private async Task SeedFromServerAsync()
+    {
+        try
+        {
+            var contentId = await framework
+                .RunOnFrameworkThread(() => Plugin.PlayerState.IsLoaded ? Plugin.PlayerState.ContentId.ToString() : null)
+                .ConfigureAwait(false);
+
+            if (contentId is null)
+            {
+                // Logged out between the request and here. Owed again next time.
+                seedRequested = false;
+                return;
+            }
+
+            var result = await api.GetStoredTimersAsync(contentId).ConfigureAwait(false);
+
+            if (!result.Success || result.Data is null)
+            {
+                // Quietly. This is a nicety, not the feature: the next workshop visit fills the
+                // readout anyway, and the sync status already reports connection health.
+                return;
+            }
+
+            // On the framework thread so it cannot interleave with a poll writing the same field.
+            await framework.RunOnFrameworkThread(() => Seed(result.Data.Timers)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "Could not seed the readout from MogHouse");
+        }
+    }
+
+    private void Seed(IReadOnlyList<SnapshotTimer> stored)
+    {
+        var current = reading;
+        var known = new HashSet<string>(current.Timers.Select(t => t.Key), StringComparer.Ordinal);
+
+        // A timer switched off in the plugin must not come back through the back door: the server
+        // is told to clear it on the next snapshot, but until then it may still be holding it.
+        var extra = stored
+            .Where(t => !known.Contains(t.Key) && configuration.IsTimerEnabled(t.Key))
+            .ToList();
+
+        if (extra.Count == 0)
+        {
+            return;
+        }
+
+        // `At` is left alone on purpose: nothing has been *read* yet, and claiming otherwise would
+        // make a seeded readout look like a fresh one.
+        reading = new TimerReading
+        {
+            At = current.At,
+            Timers = current.Timers.Concat(extra).ToList(),
+        };
     }
 
     private void OnFrameworkUpdate(IFramework tick)
@@ -205,6 +280,14 @@ public sealed class TimerSyncService : IDisposable
         if (!configuration.IsLinked || !Plugin.PlayerState.IsLoaded)
         {
             return;
+        }
+
+        // Before the poll gate, so the readout is populated on the first tick after login rather
+        // than waiting out a poll interval for something that is already known.
+        if (!seedRequested)
+        {
+            seedRequested = true;
+            _ = Task.Run(SeedFromServerAsync);
         }
 
         var now = DateTime.UtcNow;

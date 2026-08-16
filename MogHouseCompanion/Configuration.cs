@@ -86,13 +86,24 @@ public class Configuration : IPluginConfiguration
     public bool DutyPushOnlyWhenAway { get; set; } = true;
 
     /// <summary>
-    /// Whether the timers readout opens alongside the main window.
+    /// Whether opening the plugin with <c>/moghouse</c> brings the timers readout with it.
     ///
     /// On by default: the plugin reads these timers anyway, and having to open the website to see
     /// numbers the game just handed over is the kind of thing that makes a tool feel like a chore.
-    /// It can also be opened on its own and left open, in which case it comes back on the next login.
+    ///
+    /// Purely a preference. It used to double as "is the window open right now" — closing the
+    /// readout by its X switched the setting off — which meant a one-off tidy-up silently changed
+    /// what <c>/moghouse</c> would do from then on. Closing a window now just closes it.
     /// </summary>
     public bool ShowTimersWindow { get; set; } = true;
+
+    /// <summary>
+    /// Open the timers readout on its own as soon as you log in, without opening the plugin.
+    ///
+    /// Off by default. A window that appears unasked over the login screen is a strong opinion to
+    /// hold on someone else's behalf, so it is offered rather than assumed.
+    /// </summary>
+    public bool OpenTimersOnLogin { get; set; } = false;
 
     /// <summary>Show MogHouse notifications — messages, matches, announcements — inside the game.</summary>
     public bool ShowMogHouseNotifications { get; set; } = true;

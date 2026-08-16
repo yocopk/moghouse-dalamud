@@ -80,3 +80,16 @@ public sealed class SnapshotResult
 
     [JsonPropertyName("serverTime")] public DateTime? ServerTime { get; set; }
 }
+
+/// <summary>
+/// What MogHouse already holds for this character, used to seed the readout on launch.
+///
+/// Reuses <see cref="SnapshotTimer"/> because the wire shape is identical in both directions —
+/// the server stores exactly what it was sent, and hands it back unchanged.
+/// </summary>
+public sealed class StoredTimers
+{
+    [JsonPropertyName("timers")] public List<SnapshotTimer> Timers { get; set; } = [];
+
+    [JsonPropertyName("serverTime")] public DateTime? ServerTime { get; set; }
+}

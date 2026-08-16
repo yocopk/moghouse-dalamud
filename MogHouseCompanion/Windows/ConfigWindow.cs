@@ -101,18 +101,39 @@ public sealed class ConfigWindow : Window, IDisposable
     {
         var showTimers = configuration.ShowTimersWindow;
 
-        if (ImGui.Checkbox("Show the timers window###MogHouseCompanionShowTimers", ref showTimers))
+        if (ImGui.Checkbox("Open the timers window with /moghouse###MogHouseCompanionShowTimers", ref showTimers))
         {
             configuration.ShowTimersWindow = showTimers;
             configuration.Save();
-            timersWindow.IsOpen = showTimers;
+
+            // Opens it there and then so the switch shows its own effect, but does not close it:
+            // switching off a rule about the future should not tidy away a window you are using.
+            if (showTimers)
+            {
+                timersWindow.IsOpen = true;
+            }
         }
 
         using (ImRaii.PushIndent(26f))
         {
             ImGui.TextColored(
                 Theme.Muted,
-                "A small readout of your own timers, opened alongside the main window.");
+                "A small readout of your own timers, meant to be left open beside the game.");
+        }
+
+        var openOnLogin = configuration.OpenTimersOnLogin;
+
+        if (ImGui.Checkbox("Open it automatically when you log in###MogHouseCompanionTimersOnLogin", ref openOnLogin))
+        {
+            configuration.OpenTimersOnLogin = openOnLogin;
+            configuration.Save();
+        }
+
+        using (ImRaii.PushIndent(26f))
+        {
+            ImGui.TextColored(
+                Theme.Muted,
+                "On its own, without opening the rest of the plugin.");
         }
 
         ImGui.Spacing();

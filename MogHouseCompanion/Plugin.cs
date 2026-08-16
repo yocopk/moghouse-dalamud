@@ -54,9 +54,7 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow = new ConfigWindow(Configuration, SyncService, TimersWindow);
         StatusWindow = new StatusWindow(Configuration, SyncService, PlanService, PairingWindow, ConfigWindow, TimersWindow);
 
-        // Left open last session means open now: a readout you have to re-summon every login is a
-        // readout you stop using.
-        TimersWindow.SyncOpenState();
+        ClientState.Login += OnLogin;
 
         windowSystem.AddWindow(PairingWindow);
         windowSystem.AddWindow(ConfigWindow);
@@ -76,6 +74,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        ClientState.Login -= OnLogin;
+
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleStatusUi;
@@ -99,6 +99,18 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string args)
     {
         ToggleStatusUi();
+    }
+
+    /// <summary>
+    /// Opt-in: the readout appears on its own as you arrive, without the rest of the plugin coming
+    /// with it. Only ever opens — a login is not a reason to close a window someone left open.
+    /// </summary>
+    private void OnLogin()
+    {
+        if (Configuration.OpenTimersOnLogin)
+        {
+            TimersWindow.IsOpen = true;
+        }
     }
 
     /// <summary>

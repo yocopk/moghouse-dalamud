@@ -47,16 +47,6 @@ public sealed class TimersWindow : Window, IDisposable
 
     public void Dispose() { }
 
-    /// <summary>Closing it by the title bar X is a preference, not a one-off, so it is remembered.</summary>
-    public override void OnClose()
-    {
-        if (configuration.ShowTimersWindow)
-        {
-            configuration.ShowTimersWindow = false;
-            configuration.Save();
-        }
-    }
-
     public override void Draw()
     {
         if (!configuration.IsLinked)
@@ -197,9 +187,4 @@ public sealed class TimersWindow : Window, IDisposable
         return (TimerLabels.Remaining(left), left <= SoonThreshold ? Theme.Gold : Theme.Muted);
     }
 
-    /// <summary>Kept in step with the setting, so it reopens on the next login if it was left open.</summary>
-    public void SyncOpenState()
-    {
-        IsOpen = configuration.ShowTimersWindow;
-    }
 }
