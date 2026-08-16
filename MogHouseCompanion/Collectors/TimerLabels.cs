@@ -14,6 +14,7 @@ public static class TimerLabels
         TimerKeys.Submarine => "Submarines",
         TimerKeys.Airship => "Airships",
         TimerKeys.Venture => "Ventures",
+        TimerKeys.SquadronMission => "Squadron",
         TimerKeys.MapAllowance => "Treasure map",
         TimerKeys.LeveAllowance => "Leve allowances",
         TimerKeys.CustomDeliveries => "Custom deliveries",
@@ -27,6 +28,7 @@ public static class TimerLabels
         TimerKeys.Submarine => "Submarine",
         TimerKeys.Airship => "Airship",
         TimerKeys.Venture => "Venture",
+        TimerKeys.SquadronMission => "Squadron mission",
         TimerKeys.MapAllowance => "Treasure map allowance",
         _ => Group(key),
     };
@@ -45,6 +47,8 @@ public static class TimerLabels
         TimerKeys.Venture => subKey is { Length: > 0 }
             ? $"{subKey} has finished a venture."
             : "A venture has finished.",
+
+        TimerKeys.SquadronMission => "Your squadron is back from its mission.",
 
         TimerKeys.MapAllowance => "Your next treasure map allowance is ready.",
 

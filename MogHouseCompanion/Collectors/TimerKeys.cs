@@ -9,6 +9,7 @@ public static class TimerKeys
     public const string Submarine = "submarine";
     public const string Airship = "airship";
     public const string Venture = "venture";
+    public const string SquadronMission = "squadron_mission";
     public const string MapAllowance = "map_allowance";
     public const string LeveAllowance = "leve_allowance";
     public const string CustomDeliveries = "custom_deliveries";
@@ -27,6 +28,7 @@ public static class TimerKeys
         Submarine,
         Airship,
         Venture,
+        SquadronMission,
         MapAllowance,
         LeveAllowance,
         CustomDeliveries,

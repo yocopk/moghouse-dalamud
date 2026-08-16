@@ -47,6 +47,7 @@ offering a notification switch for it.
 |---|---|---|
 | Workshop voyages | One deadline per fleet, set to the **last** vessel back | inside the FC workshop |
 | Retainer ventures | Venture completion, per retainer | after opening the retainer bell |
+| Squadron | When the Adventurer Squadron is back from its mission | always, once logged in |
 | Allowances | Treasure map, leves, custom deliveries, allied society dailies | always, once logged in |
 
 A voyage is reported as a single row rather than one per vessel: being told about the first of four

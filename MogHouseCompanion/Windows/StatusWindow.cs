@@ -24,6 +24,7 @@ public sealed class StatusWindow : Window, IDisposable
 
     private readonly Configuration configuration;
     private readonly TimerSyncService syncService;
+    private readonly PlanService planService;
     private readonly PairingWindow pairingWindow;
     private readonly ConfigWindow configWindow;
     private readonly TimersWindow timersWindow;
@@ -31,6 +32,7 @@ public sealed class StatusWindow : Window, IDisposable
     public StatusWindow(
         Configuration configuration,
         TimerSyncService syncService,
+        PlanService planService,
         PairingWindow pairingWindow,
         ConfigWindow configWindow,
         TimersWindow timersWindow)
@@ -38,6 +40,7 @@ public sealed class StatusWindow : Window, IDisposable
     {
         this.configuration = configuration;
         this.syncService = syncService;
+        this.planService = planService;
         this.pairingWindow = pairingWindow;
         this.configWindow = configWindow;
         this.timersWindow = timersWindow;
@@ -53,6 +56,10 @@ public sealed class StatusWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // Cheap on every frame but the first of each quarter hour, and asking only while the window
+        // is open is the whole point: a plugin nobody is looking at has no reason to poll.
+        planService.EnsureFresh();
+
         DrawHeader();
 
         if (!configuration.IsLinked)
@@ -204,6 +211,68 @@ public sealed class StatusWindow : Window, IDisposable
                 "Voyage timers are only readable inside the company workshop, and venture timers " +
                 "after opening the retainer bell. That is a limit of the game, not of the plugin.");
         }
+
+        DrawPlan();
+    }
+
+    /// <summary>
+    /// What the account's plan allows. Stated here so a ceiling is something you read once, rather
+    /// than something you deduce from a character that quietly stopped updating.
+    ///
+    /// No upsell button on purpose: this card already has the one button it should have, and a
+    /// second one competing with "Sync now" would turn a status readout into a shop. Selling is the
+    /// website's job.
+    /// </summary>
+    private void DrawPlan()
+    {
+        var plan = planService.Plan;
+
+        // Never fetched, or the server could not be reached. Saying nothing beats guessing, since
+        // guessing wrong here means telling someone who pays that they are on the free plan.
+        if (plan is null)
+        {
+            return;
+        }
+
+        ImGui.Spacing();
+
+        if (plan.IsPlus)
+        {
+            Theme.Field("Plan", "Mog+", Theme.Premium);
+            return;
+        }
+
+        Theme.Field("Plan", "Free", Theme.Muted);
+        Theme.Hint(DescribeFreePlan(plan));
+    }
+
+    private static string DescribeFreePlan(Dto.PlanInfo plan)
+    {
+        var following = plan.PrimaryCharacter is { } primary
+            ? $"MogHouse is following {primary.Name}"
+            : "MogHouse follows the first character that syncs";
+
+        var alerts = plan.Limits.Alerts switch
+        {
+            null => "as many alerts as you like",
+            1 => "one alert at a time",
+            var n => $"{n} alerts at a time",
+        };
+
+        // Characters synced before a subscription lapsed are kept, not deleted — worth saying,
+        // because the alternative reading is that they were lost.
+        var paused = plan.Limits.Characters is { } limit
+            ? Math.Max(0, plan.Usage.Characters - limit)
+            : 0;
+
+        var pausedNote = paused switch
+        {
+            0 => string.Empty,
+            1 => " One other character is paused, and comes back with Mog+.",
+            _ => $" {paused} other characters are paused, and come back with Mog+.",
+        };
+
+        return $"{following}, and carries {alerts}.{pausedNote}";
     }
 
     private void DrawDuty()

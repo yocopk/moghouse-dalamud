@@ -131,6 +131,7 @@ public sealed class TimerSyncService : IDisposable
         [
             new VoyageCollector(),
             new VentureCollector(),
+            new SquadronCollector(),
             new AllowanceCollector(),
         ];
 

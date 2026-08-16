@@ -28,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     private Configuration Configuration { get; }
     private MogHouseApi Api { get; }
     private TimerSyncService SyncService { get; }
+    private PlanService PlanService { get; }
     private ActivityWatcher ActivityWatcher { get; }
     private DutyWatcher DutyWatcher { get; }
     private ChatAnnouncer ChatAnnouncer { get; }
@@ -42,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Api = new MogHouseApi(Configuration);
         SyncService = new TimerSyncService(Configuration, Api, Framework, ClientState);
+        PlanService = new PlanService(Configuration, Api);
         ActivityWatcher = new ActivityWatcher(AddonLifecycle, SyncService);
         DutyWatcher = new DutyWatcher(Configuration, Api, AddonLifecycle);
         ChatAnnouncer = new ChatAnnouncer(Configuration, SyncService, Framework, ChatGui);
@@ -50,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
         PairingWindow = new PairingWindow(Configuration, Api, SyncService);
         TimersWindow = new TimersWindow(Configuration, SyncService);
         ConfigWindow = new ConfigWindow(Configuration, SyncService, TimersWindow);
-        StatusWindow = new StatusWindow(Configuration, SyncService, PairingWindow, ConfigWindow, TimersWindow);
+        StatusWindow = new StatusWindow(Configuration, SyncService, PlanService, PairingWindow, ConfigWindow, TimersWindow);
 
         // Left open last session means open now: a readout you have to re-summon every login is a
         // readout you stop using.

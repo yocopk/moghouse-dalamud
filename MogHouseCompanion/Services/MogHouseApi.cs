@@ -102,6 +102,15 @@ public sealed class MogHouseApi : IDisposable
         return GetAsync<NotificationFeed>($"/api/plugin/v1/notifications?after={cursor}", ct);
     }
 
+    /// <summary>
+    /// The account's plan and how much of its ceilings are spent, so the window can state a limit
+    /// rather than let the player find it by being refused.
+    /// </summary>
+    public Task<ApiResponse<PlanInfo>> GetPlanAsync(CancellationToken ct = default)
+    {
+        return GetAsync<PlanInfo>("/api/plugin/v1/me", ct);
+    }
+
     private Task<ApiResponse<TOut>> PostAsync<TIn, TOut>(
         string path,
         TIn body,

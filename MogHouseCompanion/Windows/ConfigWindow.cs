@@ -31,6 +31,7 @@ public sealed class ConfigWindow : Window, IDisposable
         new(TimerKeys.Submarine, "Submarine voyages", "Read in the company workshop. Timed to the last one back."),
         new(TimerKeys.Airship, "Airship voyages", "Read in the company workshop. Timed to the last one back."),
         new(TimerKeys.Venture, "Retainer ventures", "Completion times, read at the retainer bell."),
+        new(TimerKeys.SquadronMission, "Squadron missions", "When your Adventurer Squadron is back. Readable anywhere."),
         new(TimerKeys.MapAllowance, "Treasure maps", "When the next map allowance is up."),
         new(TimerKeys.LeveAllowance, "Leve allowances", "How many you are holding."),
         new(TimerKeys.CustomDeliveries, "Custom deliveries", "Allowances left this week."),
